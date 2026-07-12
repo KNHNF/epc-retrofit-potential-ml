@@ -1,0 +1,192 @@
+{
+  "numeric": {
+    "CURRENT_ENERGY_EFFICIENCY": {
+      "min": 1.0,
+      "max": 100.0,
+      "median": 71.0
+    },
+    "TOTAL_FLOOR_AREA": {
+      "min": 1.0,
+      "max": 2205.0,
+      "median": 77.0
+    },
+    "NUMBER_HABITABLE_ROOMS": {
+      "min": 1.0,
+      "max": 54.0,
+      "median": 4.0
+    },
+    "NUMBER_HEATED_ROOMS": {
+      "min": 0.0,
+      "max": 54.0,
+      "median": 4.0
+    },
+    "CO2_EMISS_CURR_PER_FLOOR_AREA": {
+      "min": -49.0,
+      "max": 2095.0,
+      "median": 32.0
+    },
+    "CO2_EMISSIONS_CURRENT": {
+      "min": -2.3,
+      "max": 94.0,
+      "median": 2.4
+    },
+    "ENERGY_CONSUMPTION_CURRENT": {
+      "min": -109.0,
+      "max": 11878.0,
+      "median": 182.0
+    },
+    "HEATING_COST_CURRENT": {
+      "min": 12.0,
+      "max": 21651.0,
+      "median": 717.0
+    },
+    "HOT_WATER_COST_CURRENT": {
+      "min": -71.0,
+      "max": 2121.0,
+      "median": 196.0
+    },
+    "LIGHTING_COST_CURRENT": {
+      "min": 10.0,
+      "max": 808.0,
+      "median": 67.0
+    },
+    "EXTENSION_COUNT": {
+      "min": 0.0,
+      "max": 4.0,
+      "median": 0.0
+    },
+    "FIXED_LIGHTING_OUTLETS_COUNT": {
+      "min": 0.0,
+      "max": 270.0,
+      "median": 11.0
+    },
+    "MULTI_GLAZE_PROPORTION": {
+      "min": 0.0,
+      "max": 100.0,
+      "median": 100.0
+    },
+    "LOW_ENERGY_LIGHTING": {
+      "min": 0.0,
+      "max": 100.0,
+      "median": 100.0
+    }
+  },
+  "categorical": {
+    "CURRENT_ENERGY_RATING": [
+      "G",
+      "F",
+      "E",
+      "D",
+      "C",
+      "B",
+      "A"
+    ],
+    "WALLS_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "ROOF_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "FLOOR_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "WINDOWS_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "MAINHEAT_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "HOT_WATER_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "LIGHTING_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "MAINHEATC_ENERGY_EFF": [
+      "N/A",
+      "Very Poor",
+      "Poor",
+      "Average",
+      "Good",
+      "Very Good"
+    ],
+    "PROPERTY_TYPE": [
+      "Bungalow",
+      "Flat",
+      "House",
+      "Maisonette",
+      "Park home"
+    ],
+    "BUILT_FORM": [
+      "Detached",
+      "Enclosed End-Terrace",
+      "Enclosed Mid-Terrace",
+      "End-Terrace",
+      "Mid-Terrace",
+      "Semi-Detached"
+    ],
+    "TENURE": [
+      "owner-occupied",
+      "rented (private)",
+      "rented (social)",
+      "unknown"
+    ],
+    "MAINS_GAS_FLAG": [
+      "N",
+      "Y"
+    ],
+    "TRANSACTION_TYPE": [
+      "Assessment for Green Deal",
+      "ECO assessment",
+      "FiT application",
+      "Following Green Deal",
+      "Marketed sale",
+      "New dwelling",
+      "Non-marketed sale",
+      "None of the above",
+      "RHI application",
+      "Rental",
+      "Stock condition survey"
+    ],
+    "WALL_TYPE": [
+      "cavity",
+      "other",
+      "solid"
+    ]
+  }
+}
