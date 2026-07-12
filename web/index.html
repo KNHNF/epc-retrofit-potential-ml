@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPC Retrofit Potential -- Live Model Demo</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e38;
+    --text: #e8e9ec;
+    --muted: #9aa0ab;
+    --accent: #4f9d69;
+    --accent-dim: #2c4432;
+    --warn: #c9963c;
+    --high: #d8683f;
+    --low: #4f9d69;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 28px; }
+  .note {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .note a { color: var(--text); }
+  .cards { display: grid; gap: 12px; margin-bottom: 24px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .card:hover { border-color: #454b58; }
+  .card.selected { border-color: var(--accent); background: var(--accent-dim); }
+  .card-title { font-weight: 600; margin-bottom: 4px; }
+  .card-era {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-bottom: 8px;
+  }
+  .card-meta { font-size: 0.85rem; color: var(--muted); }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; font-size: 0.82rem; color: var(--muted); }
+  .attr-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+    font-size: 0.82rem;
+    margin-top: 8px;
+    color: var(--muted);
+  }
+  .attr-grid b { color: var(--text); font-weight: 500; }
+  button#predict-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #04150a;
+    cursor: pointer;
+  }
+  button#predict-btn:disabled { background: #3a3f4a; color: var(--muted); cursor: not-allowed; }
+  #status {
+    margin-top: 16px;
+    font-size: 0.88rem;
+    color: var(--muted);
+    min-height: 20px;
+  }
+  .progress-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.2s;
+  }
+  #result {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    display: none;
+  }
+  #result.show { display: block; }
+  .result-verdict { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+  .result-verdict.high { color: var(--high); }
+  .result-verdict.low { color: var(--low); }
+  .result-prob { color: var(--muted); font-size: 0.95rem; margin-bottom: 12px; }
+  .result-actual {
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+  .caveat {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>EPC Retrofit Potential</h1>
+  <div class="subtitle">Live Random Forest inference, running entirely in your browser. No server, no data leaves this page.</div>
+
+  <div class="note">
+    This model predicts whether a UK residential property has <b>high retrofit
+    potential</b>: currently rated D-G, with a 20+ point gap between its current
+    and potential EPC efficiency score. The three properties below are real,
+    anonymised EPC certificates, not fabricated examples. Full methodology,
+    code, and reported test-set metrics: <a href="https://github.com/KNHNF/epc-retrofit-potential-ml" target="_blank" rel="noopener">GitHub repository</a>.
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <button id="predict-btn" disabled>Select a property above</button>
+  <div id="status"></div>
+  <div class="progress-track" id="progress-track" style="display:none;">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+
+  <div id="result">
+    <div class="result-verdict" id="result-verdict"></div>
+    <div class="result-prob" id="result-prob"></div>
+    <div class="result-actual" id="result-actual"></div>
+  </div>
+
+  <div class="caveat">
+    <b>Precision note:</b> ONNX Runtime evaluates this model in float32, while
+    the original scikit-learn model (whose numbers are reported in the write-up)
+    uses float64. Verified against the original model on 500 real held-out
+    properties: predictions matched exactly in all but one case, which was a
+    property sitting almost exactly on the 50% decision boundary in both
+    versions (50.33% vs 50.00%). None of the three examples above are anywhere
+    near that boundary.
+    <br><br>
+    <b>Model file:</b> ~200 MB (300-tree Random Forest, matching the model
+    reported in the write-up exactly, not a reduced demo version). Downloaded
+    once, on your first click below, and cached by your browser after that.
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+<script>
+// ---------------------------------------------------------------------
+// CONFIG: replace with your GitHub Release asset URL once uploaded.
+// e.g. https://github.com/KNHNF/epc-retrofit-potential-ml/releases/download/v1.0/epc_retrofit_rf.onnx
+// ---------------------------------------------------------------------
+const MODEL_URL = "REPLACE_WITH_GITHUB_RELEASE_ASSET_URL";
+
+// Three real, anonymised EPC certificates (2 from the 2025-2026 held-out
+// test set, 1 from the 2020-2024 training set), pulled directly from the
+// processed data used to train and evaluate the reported model. Deliberately
+// picked far from the 0.5 decision boundary -- see the precision note above.
+const EXAMPLES = [
+  {
+    label: "Poor-efficiency terrace",
+    era: "2025-2026 (test set)",
+    actual: 1,
+    features: {
+      CURRENT_ENERGY_EFFICIENCY: 1, TOTAL_FLOOR_AREA: 158.0, NUMBER_HABITABLE_ROOMS: 8.0,
+      NUMBER_HEATED_ROOMS: 3.0, CO2_EMISS_CURR_PER_FLOOR_AREA: 116.0, CO2_EMISSIONS_CURRENT: 18.0,
+      ENERGY_CONSUMPTION_CURRENT: 685.0, HEATING_COST_CURRENT: 7979.0, HOT_WATER_COST_CURRENT: 355.0,
+      LIGHTING_COST_CURRENT: 209.0, EXTENSION_COUNT: 3.0, FIXED_LIGHTING_OUTLETS_COUNT: 14.0,
+      MULTI_GLAZE_PROPORTION: 0.0, LOW_ENERGY_LIGHTING: 36.0,
+      CURRENT_ENERGY_RATING: "G", WALLS_ENERGY_EFF: "Poor", ROOF_ENERGY_EFF: "Very Poor",
+      FLOOR_ENERGY_EFF: "None", WINDOWS_ENERGY_EFF: "Very Poor", MAINHEAT_ENERGY_EFF: "Very Poor",
+      HOT_WATER_ENERGY_EFF: "Very Poor", LIGHTING_ENERGY_EFF: "Average", MAINHEATC_ENERGY_EFF: "Poor",
+      PROPERTY_TYPE: "House", BUILT_FORM: "Mid-Terrace", TENURE: "owner-occupied",
+      MAINS_GAS_FLAG: "N", TRANSACTION_TYPE: "Marketed sale", WALL_TYPE: "solid",
+    },
+    display: { "Rating": "G", "Floor area": "158 m2", "Wall type": "Solid, uninsulated",
+               "Heating cost": "£7,979/yr", "Built form": "Mid-terrace house" },
+  },
+  {
+    label: "Already-efficient new-build",
+    era: "2025-2026 (test set)",
+    actual: 0,
+    features: {
+      CURRENT_ENERGY_EFFICIENCY: 100, TOTAL_FLOOR_AREA: 52.0, NUMBER_HABITABLE_ROOMS: "None",
+      NUMBER_HEATED_ROOMS: "None", CO2_EMISS_CURR_PER_FLOOR_AREA: 1.0, CO2_EMISSIONS_CURRENT: 0.1,
+      ENERGY_CONSUMPTION_CURRENT: 8.0, HEATING_COST_CURRENT: 246.0, HOT_WATER_COST_CURRENT: 150.0,
+      LIGHTING_COST_CURRENT: 69.0, EXTENSION_COUNT: "None", FIXED_LIGHTING_OUTLETS_COUNT: 12.0,
+      MULTI_GLAZE_PROPORTION: 100.0, LOW_ENERGY_LIGHTING: 100.0,
+      CURRENT_ENERGY_RATING: "A", WALLS_ENERGY_EFF: "Very Good", ROOF_ENERGY_EFF: "None",
+      FLOOR_ENERGY_EFF: "Very Good", WINDOWS_ENERGY_EFF: "Very Good", MAINHEAT_ENERGY_EFF: "Average",
+      HOT_WATER_ENERGY_EFF: "Good", LIGHTING_ENERGY_EFF: "Very Good", MAINHEATC_ENERGY_EFF: "Very Good",
+      PROPERTY_TYPE: "Flat", BUILT_FORM: "Semi-Detached", TENURE: "unknown",
+      MAINS_GAS_FLAG: "None", TRANSACTION_TYPE: "New dwelling", WALL_TYPE: "other",
+    },
+    display: { "Rating": "A", "Floor area": "52 m2", "Wall type": "Modern (other)",
+               "Heating cost": "£246/yr", "Built form": "Semi-detached flat" },
+  },
+  {
+    label: "Poor-efficiency detached (training era)",
+    era: "2020-2024 (training set)",
+    actual: 1,
+    features: {
+      CURRENT_ENERGY_EFFICIENCY: 1, TOTAL_FLOOR_AREA: 269.0, NUMBER_HABITABLE_ROOMS: 9.0,
+      NUMBER_HEATED_ROOMS: 6.0, CO2_EMISS_CURR_PER_FLOOR_AREA: 170.0, CO2_EMISSIONS_CURRENT: 46.0,
+      ENERGY_CONSUMPTION_CURRENT: 786.0, HEATING_COST_CURRENT: 8879.0, HOT_WATER_COST_CURRENT: 772.0,
+      LIGHTING_COST_CURRENT: 214.0, EXTENSION_COUNT: 2.0, FIXED_LIGHTING_OUTLETS_COUNT: 17.0,
+      MULTI_GLAZE_PROPORTION: 100.0, LOW_ENERGY_LIGHTING: 41.0,
+      CURRENT_ENERGY_RATING: "G", WALLS_ENERGY_EFF: "Very Poor", ROOF_ENERGY_EFF: "Very Poor",
+      FLOOR_ENERGY_EFF: "None", WINDOWS_ENERGY_EFF: "Good", MAINHEAT_ENERGY_EFF: "Very Poor",
+      HOT_WATER_ENERGY_EFF: "Very Poor", LIGHTING_ENERGY_EFF: "Average", MAINHEATC_ENERGY_EFF: "Poor",
+      PROPERTY_TYPE: "House", BUILT_FORM: "Detached", TENURE: "rented (private)",
+      MAINS_GAS_FLAG: "N", TRANSACTION_TYPE: "Rental", WALL_TYPE: "solid",
+    },
+    display: { "Rating": "G", "Floor area": "269 m2", "Wall type": "Solid, uninsulated",
+               "Heating cost": "£8,879/yr", "Built form": "Detached house" },
+  },
+];
+
+const NUMERIC_COLS = [
+  "CURRENT_ENERGY_EFFICIENCY","TOTAL_FLOOR_AREA","NUMBER_HABITABLE_ROOMS","NUMBER_HEATED_ROOMS",
+  "CO2_EMISS_CURR_PER_FLOOR_AREA","CO2_EMISSIONS_CURRENT","ENERGY_CONSUMPTION_CURRENT",
+  "HEATING_COST_CURRENT","HOT_WATER_COST_CURRENT","LIGHTING_COST_CURRENT","EXTENSION_COUNT",
+  "FIXED_LIGHTING_OUTLETS_COUNT","MULTI_GLAZE_PROPORTION","LOW_ENERGY_LIGHTING",
+];
+const STRING_COLS = [
+  "CURRENT_ENERGY_RATING","WALLS_ENERGY_EFF","ROOF_ENERGY_EFF","FLOOR_ENERGY_EFF",
+  "WINDOWS_ENERGY_EFF","MAINHEAT_ENERGY_EFF","HOT_WATER_ENERGY_EFF","LIGHTING_ENERGY_EFF",
+  "MAINHEATC_ENERGY_EFF","PROPERTY_TYPE","BUILT_FORM","TENURE","MAINS_GAS_FLAG",
+  "TRANSACTION_TYPE","WALL_TYPE",
+];
+
+let selectedIndex = null;
+let session = null;
+
+function renderCards() {
+  const container = document.getElementById("cards");
+  container.innerHTML = "";
+  EXAMPLES.forEach((ex, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.index = i;
+
+    const attrRows = Object.entries(ex.display)
+      .map(([k, v]) => `<div>${k}</div><div><b>${v}</b></div>`)
+      .join("");
+
+    card.innerHTML = `
+      <span class="card-era">${ex.era}</span>
+      <div class="card-title">${ex.label}</div>
+      <details>
+        <summary>Show property details</summary>
+        <div class="attr-grid">${attrRows}</div>
+      </details>
+    `;
+    card.addEventListener("click", (e) => {
+      if (e.target.tagName === "SUMMARY") return;
+      selectExample(i);
+    });
+    container.appendChild(card);
+  });
+}
+
+function selectExample(i) {
+  selectedIndex = i;
+  document.querySelectorAll(".card").forEach((c, idx) => {
+    c.classList.toggle("selected", idx === i);
+  });
+  document.getElementById("result").classList.remove("show");
+  const btn = document.getElementById("predict-btn");
+  btn.disabled = false;
+  btn.textContent = session ? "Run prediction" : "Load model and predict (~200 MB, first time only)";
+}
+
+async function loadModelWithProgress(onProgress) {
+  const cache = await caches.open("epc-model-v1");
+  let response = await cache.match(MODEL_URL);
+  if (!response) {
+    const fetchResp = await fetch(MODEL_URL);
+    const total = Number(fetchResp.headers.get("content-length")) || 0;
+    const reader = fetchResp.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total) onProgress(received / total);
+    }
+    const blob = new Blob(chunks);
+    response = new Response(blob, { headers: fetchResp.headers });
+    await cache.put(MODEL_URL, response.clone());
+  } else {
+    onProgress(1);
+  }
+  const buf = await response.arrayBuffer();
+  return await ort.InferenceSession.create(buf);
+}
+
+async function runPrediction() {
+  if (selectedIndex === null) return;
+  const btn = document.getElementById("predict-btn");
+  const status = document.getElementById("status");
+  const track = document.getElementById("progress-track");
+  const fill = document.getElementById("progress-fill");
+
+  btn.disabled = true;
+
+  if (!session) {
+    status.textContent = "Downloading model (one-time, cached after this)...";
+    track.style.display = "block";
+    try {
+      session = await loadModelWithProgress((frac) => {
+        fill.style.width = `${Math.round(frac * 100)}%`;
+        status.textContent = `Downloading model: ${Math.round(frac * 100)}%`;
+      });
+    } catch (err) {
+      status.textContent = "Failed to load model: " + err.message;
+      btn.disabled = false;
+      return;
+    }
+    track.style.display = "none";
+  }
+
+  status.textContent = "Running inference...";
+  const ex = EXAMPLES[selectedIndex];
+  const feeds = {};
+  for (const col of NUMERIC_COLS) {
+    feeds[col] = new ort.Tensor("float32", Float32Array.from([Number(ex.features[col])]), [1, 1]);
+  }
+  for (const col of STRING_COLS) {
+    feeds[col] = new ort.Tensor("string", [String(ex.features[col])], [1, 1]);
+  }
+
+  const results = await session.run(feeds);
+  const probs = results["probabilities"].data; // [P(class 0), P(class 1)]
+  const highProb = probs[1];
+  const predictedHigh = highProb >= 0.5;
+
+  const verdict = document.getElementById("result-verdict");
+  const probEl = document.getElementById("result-prob");
+  const actualEl = document.getElementById("result-actual");
+
+  verdict.textContent = predictedHigh ? "High retrofit potential" : "Low retrofit potential";
+  verdict.className = "result-verdict " + (predictedHigh ? "high" : "low");
+  probEl.textContent = `Model probability: ${(highProb * 100).toFixed(1)}%`;
+  actualEl.textContent = `Actual label in the EPC data: ${ex.actual === 1 ? "high" : "low"} retrofit potential. `
+    + (predictedHigh === (ex.actual === 1) ? "The model agrees." : "The model disagrees with the recorded outcome on this property.");
+
+  document.getElementById("result").classList.add("show");
+  status.textContent = "";
+  btn.disabled = false;
+  btn.textContent = "Run again";
+}
+
+document.getElementById("predict-btn").addEventListener("click", runPrediction);
+renderCards();
+</script>
+</body>
+</html>
