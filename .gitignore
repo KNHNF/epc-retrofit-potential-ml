@@ -1,0 +1,34 @@
+# Data files (too large and contains personal address data)
+data/raw/
+data/processed/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Report drafts (submit final via Blackboard)
+report/*.docx
+report/*.pdf
+
+# Trained model binaries (too large for a normal git push, GitHub rejects
+# anything over 100MB outright; the real Random Forest export is ~200MB.
+# Distributed via a GitHub Release asset instead -- see web/index.html's
+# MODEL_URL and DEPLOY_STEPS.md. feature_schema.json is small and IS tracked,
+# it's just data (column names/categories), not a binary.
+report/model/*.onnx
+
+# Local-only session log, never committed or pushed
+HANDOFF.md
+EPC_PLAN.md
+CLAUDE.md
