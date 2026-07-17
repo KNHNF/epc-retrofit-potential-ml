@@ -85,7 +85,25 @@ def process_year_file(filepath: str, seen_uprns: set) -> pd.DataFrame:
             (chunk['CURRENT_ENERGY_EFFICIENCY'] >= 1) & (chunk['CURRENT_ENERGY_EFFICIENCY'] <= 100) &
             (chunk['POTENTIAL_ENERGY_EFFICIENCY'] >= 1) & (chunk['POTENTIAL_ENERGY_EFFICIENCY'] <= 100)
         ]
-        
+
+        # Drop physically impossible negative values in energy, emissions and cost fields
+        # (sentinel/entry errors in the source register). Coerce to numeric first so
+        # string junk becomes NaN and is not treated as a valid non-negative value.
+        NON_NEGATIVE_COLS = [
+            'CO2_EMISS_CURR_PER_FLOOR_AREA', 'CO2_EMISSIONS_CURRENT',
+            'ENERGY_CONSUMPTION_CURRENT', 'HEATING_COST_CURRENT',
+            'HOT_WATER_COST_CURRENT', 'LIGHTING_COST_CURRENT',
+            'TOTAL_FLOOR_AREA', 'NUMBER_HABITABLE_ROOMS', 'NUMBER_HEATED_ROOMS',
+            'EXTENSION_COUNT', 'FIXED_LIGHTING_OUTLETS_COUNT',
+            'MULTI_GLAZE_PROPORTION', 'LOW_ENERGY_LIGHTING',
+        ]
+        neg_present = [c for c in NON_NEGATIVE_COLS if c in chunk.columns]
+        for c in neg_present:
+            chunk[c] = pd.to_numeric(chunk[c], errors='coerce')
+        if neg_present:
+            # keep rows where every present column is either missing (imputed later) or >= 0
+            chunk = chunk[((chunk[neg_present] >= 0) | chunk[neg_present].isna()).all(axis=1)]
+
         # Convert UPRN to clean string to standardise comparison
         # Remove trailing decimals if parsed as floats
         chunk['UPRN'] = chunk['UPRN'].astype(str).str.split('.').str[0].str.strip()

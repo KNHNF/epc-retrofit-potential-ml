@@ -63,6 +63,22 @@ def test_filter_removes_out_of_range_efficiency():
     assert len(result) == 2
 
 
+def test_filter_removes_negative_physical_values():
+    df = make_sample_df()
+    df.loc[0, 'TOTAL_FLOOR_AREA'] = -90.0  # physically impossible
+    result = filter_valid_records(df)
+    assert (result['TOTAL_FLOOR_AREA'] >= 0).all()
+    assert len(result) == 2
+
+
+def test_filter_keeps_missing_physical_values():
+    # NaN is missing, not invalid: it must survive filtering (imputed downstream).
+    df = make_sample_df()
+    df.loc[0, 'TOTAL_FLOOR_AREA'] = np.nan
+    result = filter_valid_records(df)
+    assert len(result) == 3
+
+
 def test_encode_age_band_no_nulls():
     df = make_sample_df()
     result = encode_age_band(df)

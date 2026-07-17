@@ -10,6 +10,20 @@ import numpy as np
 VALID_ENERGY_RATINGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 VALID_PROPERTY_TYPES = ['House', 'Flat', 'Maisonette', 'Bungalow', 'Park home']
 
+# Columns that are physical quantities (energy, emissions, cost, counts, areas) and
+# therefore cannot be negative. A negative value here is a data-entry or sentinel error
+# in the source EPC register, not a real measurement, so the whole record is dropped
+# (consistent with how out-of-range efficiency scores are handled below).
+NON_NEGATIVE_COLS = [
+    'CURRENT_ENERGY_EFFICIENCY', 'TOTAL_FLOOR_AREA',
+    'NUMBER_HABITABLE_ROOMS', 'NUMBER_HEATED_ROOMS',
+    'CO2_EMISS_CURR_PER_FLOOR_AREA', 'CO2_EMISSIONS_CURRENT',
+    'ENERGY_CONSUMPTION_CURRENT', 'HEATING_COST_CURRENT',
+    'HOT_WATER_COST_CURRENT', 'LIGHTING_COST_CURRENT',
+    'EXTENSION_COUNT', 'FIXED_LIGHTING_OUTLETS_COUNT',
+    'MULTI_GLAZE_PROPORTION', 'LOW_ENERGY_LIGHTING',
+]
+
 AGE_BAND_ORDER = {
     'England and Wales: before 1900': 1880,
     'England and Wales: 1900-1929': 1915,
@@ -55,6 +69,13 @@ def filter_valid_records(df: pd.DataFrame) -> pd.DataFrame:
     for col in ['CURRENT_ENERGY_EFFICIENCY', 'POTENTIAL_ENERGY_EFFICIENCY']:
         if col in df.columns:
             df = df[(df[col] >= 1) & (df[col] <= 100)]
+    # Drop records with physically impossible negative values (energy, emissions, cost,
+    # counts, areas). These are sentinel/entry errors in the source register.
+    present = [c for c in NON_NEGATIVE_COLS if c in df.columns]
+    if present:
+        # Keep rows with no strictly-negative value. NaN is left in place (missing, to be
+        # imputed later): NaN < 0 is False, so missing values are not treated as invalid.
+        df = df[~(df[present] < 0).any(axis=1)]
     return df
 
 

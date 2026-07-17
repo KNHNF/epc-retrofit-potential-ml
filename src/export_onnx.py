@@ -108,6 +108,24 @@ def extract_wall_type(df):
     return df
 
 
+def drop_negative_records(df):
+    """Same negative-value filter as notebook 02: drop records with physically impossible
+    negative energy/emissions/cost values (~0.1%). NaN is kept (missing, imputed later)."""
+    non_neg = [
+        'CURRENT_ENERGY_EFFICIENCY', 'TOTAL_FLOOR_AREA',
+        'NUMBER_HABITABLE_ROOMS', 'NUMBER_HEATED_ROOMS',
+        'CO2_EMISS_CURR_PER_FLOOR_AREA', 'CO2_EMISSIONS_CURRENT',
+        'ENERGY_CONSUMPTION_CURRENT', 'HEATING_COST_CURRENT',
+        'HOT_WATER_COST_CURRENT', 'LIGHTING_COST_CURRENT',
+        'EXTENSION_COUNT', 'FIXED_LIGHTING_OUTLETS_COUNT',
+        'MULTI_GLAZE_PROPORTION', 'LOW_ENERGY_LIGHTING',
+    ]
+    present = [c for c in non_neg if c in df.columns]
+    if present:
+        df = df[~(df[present] < 0).any(axis=1)]
+    return df
+
+
 def stringify_missing(df, cols):
     """Convert real nulls to the literal string 'None', matching how the
     ORIGINAL preprocessor's categories_ already represents missingness for
@@ -179,6 +197,7 @@ def main():
           "original's, so this fit only initialises sklearn's internal state, "
           "it does not relearn anything data-driven for the pinned encoders)...")
     train = pd.read_parquet(f'{DATA_DIR}/epc_train_sample_200k.parquet')
+    train = drop_negative_records(train)  # drop the ~0.1% negative-value records, as in nb02
     train = extract_wall_type(train)
     train_for_fit = stringify_missing(train, STRING_COLS)
     export_preprocessor.fit(train_for_fit[ALL_COLS])
@@ -188,6 +207,7 @@ def main():
     # real data, missing values and all? If this doesn't match, stop, don't
     # export a silently wrong model.
     test = pd.read_parquet(f'{DATA_DIR}/epc_test_sample_50k.parquet')
+    test = drop_negative_records(test)  # keep schema mins consistent with the cleaned data
     test = extract_wall_type(test)
     sample = test[ALL_COLS].head(500).copy()
     sample_stringified = stringify_missing(sample, STRING_COLS)
