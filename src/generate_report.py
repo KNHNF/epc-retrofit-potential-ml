@@ -203,16 +203,16 @@ def build_report(mode="full"):
         "[RESULT: run all notebooks so the winning model can be stated correctly here.]"
     )
     abs_text = doc.add_paragraph(
-        "The United Kingdom's legally binding net-zero target by 2050 requires prioritising "
-        "residential retrofit interventions at scale. Existing machine learning work on Energy "
-        "Performance Certificate (EPC) data focuses on predicting the current energy rating (A-G). "
-        "This paper instead predicts retrofit headroom: whether a property currently rated D-G "
-        "has a 20-point or greater gap between its current and potential efficiency score. "
-        "Four classifiers are compared using nested cross-validation on 200,000 EPC records "
-        "from 2020 to 2024, then evaluated on a temporally held-out test set from 2025 to 2026. "
+        "The UK's net-zero-by-2050 target means public money for retrofit has to be aimed, not "
+        "sprayed evenly across the housing stock. Most machine learning work on Energy Performance "
+        "Certificate (EPC) data predicts a property's current rating (A-G). I predict something more "
+        "useful for that aiming problem: retrofit headroom, whether a home rated D-G has a 20-point "
+        "or greater gap between its current and potential efficiency score. I compare four "
+        "classifiers under nested cross-validation on 200,000 records from 2020 to 2024, then test "
+        "them on held-out 2025 to 2026 data. "
         f"{winner_sentence} "
-        "A temporal distribution shift from 21.7 to 10.8 per cent positive labels is identified "
-        "between training and test periods."
+        "The positive rate also halves across that boundary, from 21.7 to 10.8 per cent, which is "
+        "why the split is by time and not at random."
     )
     abs_text.style.font.size = Pt(11)
 
@@ -224,31 +224,26 @@ def build_report(mode="full"):
     doc.add_heading("1. Introduction", level=1)
     p_intro1 = doc.add_paragraph()
     p_intro1.add_run(
-        "The United Kingdom government has committed to reaching net-zero greenhouse gas emissions "
-        "by 2050. Within the EPC certificates examined in this study, 43.1 per cent of properties "
-        "are rated D or below on the energy efficiency scale (see Section 2), and full simultaneous "
-        "retrofit of this stock is neither financially nor logistically feasible (MHCLG, 2024). "
-        "The critical policy question is therefore: "
-        "which properties will deliver the most energy savings per unit of public investment? "
-        "Existing EPC machine learning work has largely targeted two different problems: predicting "
-        "the current energy rating label itself (Seyedzadeh "
-    )
-    p_intro1.add_run("et al.").italic = True
-    p_intro1.add_run(
-        ", 2018), or building archetypes for city-scale energy modelling rather than "
-        "property-level retrofit decisions (Pasichnyi, Wallin and Kordas, 2019). Neither targets "
-        "improvement headroom directly. Predicting the rating label is limited for policy: "
-        "a property already rated C has low improvement headroom regardless "
-        "of its rating. A more useful target is whether a property has significant potential for "
-        "improvement: the efficiency gap between its current and potential EPC score."
+        "The UK government is legally committed to net-zero greenhouse gas emissions by 2050. In the "
+        "certificates I examine, 43.1 per cent of homes are rated D or below (Section 2), and "
+        "retrofitting all of them at once is neither financially nor logistically realistic "
+        "[1]. So the question that matters is which homes return the most energy saved per "
+        "pound of public money. Existing EPC machine learning mostly answers a different question. "
+        "Some of it predicts the current rating label [2]; other work builds archetypes for "
+        "city-scale energy models rather than "
+        "property-level decisions [3]. Neither targets improvement "
+        "headroom. Predicting the rating label does not help much here, because a home already rated "
+        "C has little room to improve whatever its label. Headroom is the thing worth flagging, the "
+        "gap between a property's current and potential EPC score."
     )
     doc.add_paragraph(
-        "This paper frames retrofit prioritisation as a supervised binary classification problem "
-        "on the UK EPC open dataset. Four algorithms are evaluated: Logistic Regression (baseline), "
-        "Random Forest (main model), XGBoost (state-of-the-art tabular classifier), and Support "
-        "Vector Machine (comparison). Nested cross-validation is used throughout to prevent "
-        "optimistic performance estimates. The model is evaluated on a temporally held-out test "
-        "set, reflecting real deployment conditions."
+        "I frame retrofit prioritisation as binary classification on the UK EPC open data. Four "
+        "algorithms compete: logistic regression as the baseline, random forest as the main model, "
+        "XGBoost as a strong tabular benchmark, and an SVM for comparison. Nested cross-validation "
+        "keeps the performance estimates honest rather than optimistic. Final evaluation is on a "
+        "time-held-out test set, the condition the model would actually face in use. "
+        "[your take: one or two sentences on why this problem pulled you in, what made headroom more "
+        "interesting to you than the usual rating prediction. Say it the way you would to a coursemate.]"
     )
 
     # ------------------------------------------------------------------
@@ -257,7 +252,7 @@ def build_report(mode="full"):
     doc.add_heading("2. Dataset", level=1)
     doc.add_paragraph(
         "The dataset is the UK EPC Open Data published by the Ministry of Housing, Communities "
-        "and Local Government (MHCLG, 2024), covering domestic energy performance certificates "
+        "and Local Government [1], covering domestic energy performance certificates "
         "for England and Wales. The full dataset comprises approximately 10.8 million domestic EPC "
         "certificates across annual files from 2020 to 2026. After deduplication and filtering to "
         "properties eligible for the target definition, this yields a usable pool of 7.25 million "
@@ -268,22 +263,19 @@ def build_report(mode="full"):
         "measured and potential efficiency scores on a 1-100 scale."
     )
     doc.add_paragraph(
-        "A 200,000-record stratified training sample is drawn from certificates lodged in 2020-2024. "
-        "A separate 50,000-record sample from certificates lodged in 2025-2026 forms the test set. "
-        "This temporal split prevents information leakage from future properties and tests whether "
-        "the model generalises to the distribution of EPC assessments made in deployment conditions. "
-        "Duplicate certificates for the same property (identified by UPRN) are resolved by retaining "
-        "the most recent assessment."
+        "I draw a 200,000-record stratified training sample from certificates lodged in 2020-2024, "
+        "and a separate 50,000-record test sample from 2025-2026. Splitting by time, rather than at "
+        "random, stops the model learning from properties assessed after the ones it predicts, which "
+        "is exactly the situation it would face in deployment. Where a property has been assessed more "
+        "than once (matched on UPRN), I keep only the most recent certificate."
     )
     doc.add_paragraph(
-        "The target variable is defined as label=1 if the property's current energy rating is D, E, "
-        "F, or G (below average to very poor), and the gap between potential and current efficiency "
-        "score is at least 20 points. This threshold of 20 points corresponds approximately to two "
-        "rating bands of improvement. The resulting class balance is 21.7 per cent positive in "
-        "training and 10.8 per cent positive in the test set. The shift in class balance across "
-        "the temporal boundary is itself a substantive finding: newer EPC assessments cover "
-        "properties with less retrofit headroom, likely because more recent certificates include "
-        "a higher proportion of new-build and recently refurbished stock."
+        "The target is 1 when a property is rated D, E, F, or G and the gap between its potential and "
+        "current efficiency score is at least 20 points, roughly two rating bands of improvement. "
+        "That gives 21.7 per cent positive in training and 10.8 per cent in test. The halving across "
+        "the split is worth pausing on. It is not noise: newer certificates cover homes with less "
+        "headroom left, probably because more of them are new builds or recent refurbishments, and it "
+        "is the clearest single reason a random split would have flattered the results."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/01_class_balance.png",
@@ -299,10 +291,12 @@ def build_report(mode="full"):
         doc.add_paragraph(
             "Thirteen of the 41 raw fields carry missing values (Fig. 2): FLOOR_ENERGY_EFF is "
             "missing in 89.3 per cent of records and is dropped; a second cluster is missing in "
-            "14.7 per cent and is median/mode-imputed. Construction age band shows a clear "
+            "14.7 per cent and is median/mode-imputed. A small fraction of records (~0.1 per cent) "
+            "carry physically impossible negative values in energy, emissions, or cost fields; "
+            "these are sentinel or data-entry errors and are removed. "
+            "Construction age band shows a clear "
             "relationship with the target (Fig. 3): pre-1966 properties carry the highest "
-            "retrofit-potential rate, consistent with age band ranking highly in the permutation "
-            "importances in Section 5.3."
+            "retrofit-potential rate, consistent with Section 5.3's permutation importances."
         )
     else:
         doc.add_paragraph(
@@ -317,7 +311,11 @@ def build_report(mode="full"):
             "since the missingness rate is low enough that imputation does not dominate the "
             "resulting distribution. TOTAL_FLOOR_AREA contains extreme outliers consistent with "
             "data entry errors (values of 0 or in the thousands of square metres for a domestic "
-            "property), handled by capping at the 99th percentile before scaling."
+            "property), handled by capping at the 99th percentile before scaling. A further "
+            "quality check removes the small fraction of records (~0.1 per cent) carrying "
+            "physically impossible negative values in energy consumption, CO2 emissions, or "
+            "cost fields; these are sentinel or data-entry errors rather than real measurements, "
+            "so the affected records are dropped, consistent with the efficiency range filter."
         )
         doc.add_paragraph(
             "Construction age band shows a clear relationship with the target (Fig. 3): pre-1966 "
@@ -363,9 +361,17 @@ def build_report(mode="full"):
     # 4. Algorithm Selection and Methodology
     # ------------------------------------------------------------------
     doc.add_heading("4. Algorithm Selection and Methodology", level=1)
+    p_impl = doc.add_paragraph()
+    if safe:
+        p_impl.add_run("Models are implemented in Python via scikit-learn [4].")
+    else:
+        p_impl.add_run(
+            "All models are implemented in Python using scikit-learn [4], with XGBoost's own "
+            "library providing the gradient-boosting implementation used in 4.3 [5]."
+        )
     doc.add_heading("4.1 Logistic Regression", level=2)
     doc.add_paragraph(
-        "Logistic Regression serves as the baseline. Ng and Jordan (2001) showed that "
+        "Logistic Regression serves as the baseline. Ng and Jordan [6] showed that "
         "discriminative classifiers reach their asymptotic error with fewer training examples "
         "than generative models (e.g. Naive Bayes), justifying LR over NB on a dataset of "
         "this size. LR is interpretable via its coefficients, provides well-calibrated "
@@ -374,42 +380,29 @@ def build_report(mode="full"):
     doc.add_heading("4.2 Random Forest", level=2)
     p_rf = doc.add_paragraph()
     p_rf.add_run(
-        "Random Forest is the primary model. Breiman (2001) demonstrated that combining many "
-        "decorrelated decision trees via bagging and random feature subsampling reduces variance "
-        "without increasing bias, the core weakness of a single decision tree. A standalone "
-        "Decision Tree is explicitly rejected: Breiman "
+        "Random Forest is the primary model: bagging many decorrelated trees over random feature "
+        "subsets cuts variance without adding bias, the weakness a single decision tree has [7]. "
+        "A standalone Decision Tree is rejected outright. Unpruned trees overfit severely, and even "
+        "pruned, they lose to the ensemble on both bias-variance tradeoff and generalisation [8]. "
+        "Feature importance here uses permutation importance rather than impurity-based (MDI) "
+        "scores, since MDI is known to be unreliable across features of varying cardinality [9]."
     )
-    p_rf.add_run("et al.").italic = True
-    p_rf.add_run(
-        " (1984) established that unpruned "
-        "trees overfit severely, and even with pruning they are dominated by the ensemble in "
-        "both bias-variance tradeoff and generalisation. Random Forest's permutation feature "
-        "importances are more reliable than impurity-based (MDI) importances for "
-        "features of varying cardinality (Strobl "
-    )
-    p_rf.add_run("et al.").italic = True
-    p_rf.add_run(", 2007).")
     doc.add_heading("4.3 XGBoost", level=2)
     doc.add_paragraph(
-        "XGBoost (Chen and Guestrin, 2016) extends gradient boosting with second-order Taylor "
-        "approximations of the loss function, column subsampling, and L1/L2 regularisation. "
-        "It consistently achieves state-of-the-art performance on tabular datasets. The "
-        "scale_pos_weight parameter handles class imbalance by weighting the positive class "
-        "inversely proportional to its frequency."
+        "XGBoost extends gradient boosting with second-order Taylor approximations of the loss "
+        "function, column subsampling, and L1/L2 regularisation, and consistently performs at the "
+        "state of the art on tabular data [5]. The scale_pos_weight "
+        "parameter handles class imbalance here by weighting the positive class inversely to its "
+        "frequency."
     )
     doc.add_heading("4.4 Support Vector Machine and kNN Exclusion", level=2)
-    p_svm = doc.add_paragraph()
-    p_svm.add_run(
-        "SVM with a linear kernel (Cortes and Vapnik, 1995) provides a margin-based comparison. "
-        "LinearSVC is wrapped in CalibratedClassifierCV (Platt scaling) to produce probabilities "
-        "for ROC-AUC computation. kNN is excluded: Beyer "
-    )
-    p_svm.add_run("et al.").italic = True
-    p_svm.add_run(
-        " (1999) showed that as dimensionality rises, the distance to the nearest neighbour "
-        "converges toward the distance to the farthest one, an effect that can appear from as few "
-        "as 10-15 dimensions. The 51-dimensional feature space used here is well past that "
-        "threshold, so Euclidean distance carries little discriminative signal for a kNN classifier."
+    doc.add_paragraph(
+        "SVM with a linear kernel provides a margin-based comparison [10]. LinearSVC is wrapped in "
+        "CalibratedClassifierCV (Platt scaling) to produce probabilities for ROC-AUC computation. "
+        "kNN is excluded. Past roughly 10-15 dimensions, the distance to the nearest neighbour "
+        "converges toward the distance to the farthest one, and Euclidean distance stops carrying "
+        "useful discriminative signal [11]. The feature space used here is 51-dimensional, well "
+        "past that threshold."
     )
     doc.add_heading("4.5 Class Imbalance and Evaluation Metrics", level=2)
     doc.add_paragraph(
@@ -423,7 +416,7 @@ def build_report(mode="full"):
         "Evaluation uses nested cross-validation: a 5-fold stratified outer loop estimates "
         "generalisation performance, while a 3-fold stratified inner loop selects hyperparameters. "
         "This prevents the optimistic bias that arises when the same data split is used for both "
-        "hyperparameter selection and performance estimation (Varma and Simon, 2006). The final "
+        "hyperparameter selection and performance estimation [12]. The final "
         "test evaluation uses the temporally held-out 2025-2026 sample, which was never seen "
         "during training or hyperparameter search."
     )
@@ -457,11 +450,11 @@ def build_report(mode="full"):
             )
         else:
             result_sentence = (
-                f"On the held-out test set, models rank by ROC-AUC as follows: {auc_order}. "
-                f"{winners['best_auc_model']} achieves the highest test-set ROC-AUC; note this is "
-                "not necessarily the model with the highest cross-validation score, since CV is "
-                "computed on the 2020-2024 training distribution while the test set reflects a "
-                "later, structurally different period (see temporal shift below)."
+                f"On the held-out test set the models rank by ROC-AUC as: {auc_order}. "
+                f"{winners['best_auc_model']} comes top. The part I did not expect is that this is "
+                "not the model that scored best in cross-validation. CV runs on the 2020-2024 "
+                "training years; the test set is a later, structurally different period, and the two "
+                "do not agree (see temporal shift below)."
             )
     else:
         result_sentence = (
@@ -469,14 +462,13 @@ def build_report(mode="full"):
             "comparison can be stated here from the actual saved metrics.]"
         )
     doc.add_paragraph(
-        "All models substantially outperform the no-skill baseline (ROC-AUC = 0.5, "
-        "PR-AUC equal to the positive class prevalence). "
+        "Every model clears the no-skill baseline comfortably (ROC-AUC 0.5, PR-AUC equal to the "
+        "positive prevalence). "
         f"{result_sentence} "
-        "The gap between CV scores (on the 2020-2024 training distribution) and "
-        "test scores (2025-2026) is visible for all models and reflects the temporal distribution "
-        "shift identified in Section 2: the test set contains far fewer high-retrofit-potential "
-        "properties, making it structurally harder. This is an expected and realistic finding "
-        "for a model intended for deployment on future EPC data."
+        "The CV-to-test drop shows up for all four and traces straight back to the temporal shift "
+        "from Section 2: the test years hold far fewer high-headroom homes, so the task is harder "
+        "there. That is what deployment on future data looks like, so I read the drop as realistic, "
+        "not as a fault in the models."
     )
 
     add_figure(doc,
@@ -488,11 +480,11 @@ def build_report(mode="full"):
     doc.add_heading("5.2 Statistical Significance: McNemar's Test", level=2)
     if safe:
         doc.add_paragraph(
-            "McNemar's test (McNemar, 1947) was applied to four model pairs to assess whether "
-            "classification error distributions are statistically distinct. Dietterich (1998) shows "
-            "McNemar's test has acceptably low Type I error for the single train/test split design "
-            "used here (as opposed to designs with repeated resampling, where a 5x2cv test is "
-            "recommended instead); the Diebold-Mariano test is for regression and does not apply. "
+            "McNemar's test was applied to four model pairs to assess whether classification error "
+            "distributions are statistically distinct [13]. It is the right test for a "
+            "single train/test split design: it has acceptably low Type I error here, as opposed "
+            "to designs with repeated resampling, where a 5x2cv test is recommended instead "
+            "[14]; the Diebold-Mariano test is for regression and does not apply. "
             "Every pair differs significantly (p < 0.0001), including the closest pair, SVM vs "
             "Random Forest. With a 50,000-row test set this test has enough power to flag small "
             "error-rate differences as significant, so it establishes that the models make "
@@ -502,14 +494,14 @@ def build_report(mode="full"):
         )
     else:
         doc.add_paragraph(
-            "McNemar's test (McNemar, 1947) was applied to four model pairs (Random Forest vs "
-            "Logistic Regression, XGBoost vs Logistic Regression, XGBoost vs Random Forest, and SVM vs "
-            "Random Forest) to assess whether classification error distributions are statistically "
-            "distinct. Dietterich (1998) reviews five candidate significance tests for comparing "
-            "classifiers and finds McNemar's test has acceptably low Type I error specifically for the "
-            "single train/test split design used here, as opposed to designs involving repeated "
-            "resampling, where a 5x2cv test is recommended instead. The test is appropriate for binary "
-            "classifiers evaluated on the same test "
+            "McNemar's test was applied to four model pairs (Random Forest vs Logistic Regression, "
+            "XGBoost vs Logistic Regression, XGBoost vs Random Forest, and SVM vs Random Forest) to "
+            "assess whether classification error distributions are statistically distinct "
+            "[13]. It is the right choice here: of five candidate significance tests for "
+            "comparing classifiers, it has acceptably low Type I error specifically for the single "
+            "train/test split design used in this report, as opposed to designs involving repeated "
+            "resampling, where a 5x2cv test is recommended instead [14]. The test is "
+            "appropriate for binary classifiers evaluated on the same test "
             "instances; the Diebold-Mariano test is for regression and is not applicable here. Every "
             "pair differs significantly (p < 0.0001), including the closest pair, SVM vs Random Forest. "
             "With a 50,000-row test set, "
@@ -632,10 +624,9 @@ def build_report(mode="full"):
         doc.add_paragraph(
             "The temporal distribution shift (21.7 to 10.8 per cent positive) matters for "
             "deployment: a model trained on 2020-2024 data will meet a future stock with "
-            "proportionally fewer high-retrofit candidates. This does not invalidate the model, "
-            "since relative ranking is what matters for prioritisation, but a fixed probability "
-            "threshold will lose recall over time and should be re-calibrated annually against the "
-            "reliability diagrams in Fig. 6."
+            "proportionally fewer high-retrofit candidates. Relative ranking still holds, so this "
+            "does not invalidate the model, but a fixed threshold will lose recall over time and "
+            "needs annual re-calibration against Fig. 6."
         )
     else:
         doc.add_paragraph(
@@ -650,8 +641,8 @@ def build_report(mode="full"):
     doc.add_paragraph("There are four main limitations.")
     if safe:
         limitation_items = [
-            "Data quality. Hardy and Glew (2019) estimate the true EPC error rate at 36 to 62 per "
-            "cent once assessor disagreement is accounted for, which directly affects the "
+            "Data quality. The true EPC error rate is estimated at 36 to 62 per cent once assessor "
+            "disagreement is accounted for [15], which directly affects the "
             "WALL_TYPE feature engineered from the same unreliable free-text fields.",
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap means different things in a rural solid-wall property versus an urban flat.",
@@ -662,12 +653,12 @@ def build_report(mode="full"):
         ]
     else:
         limitation_items = [
-            "Data quality. The EPC database has documented quality issues: Hardy and Glew (2019) "
-            "found that 27 per cent of open-data EPCs carry at least one flag suggesting an error, "
-            "and estimate the true error rate at 36 to 62 per cent once assessor disagreement on "
-            "parameters such as wall type and built form is accounted for. This directly affects "
-            "the WALL_TYPE feature engineered in this pipeline, which is derived from the same "
-            "free-text description fields Hardy and Glew identify as unreliable.",
+            "Data quality. The EPC database has documented quality issues: 27 per cent of "
+            "open-data EPCs carry at least one flag suggesting an error, and the true error rate "
+            "is estimated at 36 to 62 per cent once assessor disagreement on parameters such as "
+            "wall type and built form is accounted for [15]. This directly "
+            "affects the WALL_TYPE feature engineered in this pipeline, which is derived from the "
+            "same free-text description fields identified there as unreliable.",
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap in a rural solid-wall property has different policy implications from "
             "the same gap in an urban flat.",
@@ -695,9 +686,9 @@ def build_report(mode="full"):
         doc.add_paragraph(
             "A false negative deprioritises a property that genuinely warrants intervention, a "
             "real cost to occupant and policy alike; a false positive only wastes assessor time. "
-            "This is why Section 6 recommends recall-oriented calibration, and why the model is "
-            "framed as a prioritisation aid, not an automated decision-maker. The pipeline is "
-            "public at https://github.com/KNHNF/epc-retrofit-potential-ml for independent checking."
+            "That is why Section 6 recommends recall-oriented calibration and frames the model as "
+            "a prioritisation aid, not an automated decision-maker. The pipeline is public at "
+            "https://github.com/KNHNF/epc-retrofit-potential-ml for independent checking."
         )
     else:
         doc.add_paragraph(
@@ -741,9 +732,9 @@ def build_report(mode="full"):
         doc.add_paragraph(
             "This paper presented a machine learning pipeline for identifying high-retrofit-potential "
             f"UK residential properties from EPC open data. {conclusion_lead} All ensemble models "
-            "substantially outperformed the Logistic Regression baseline and the SVM, and a temporal "
-            "distribution shift of approximately 11 percentage points in the positive class rate was "
-            "identified between training and test periods. Feature importance analysis confirms "
+            "substantially outperformed the Logistic Regression baseline and the SVM, with an "
+            "11-point temporal shift in the positive class rate between training and test periods. "
+            "Feature importance analysis confirms "
             "current efficiency, CO2 intensity, construction age, and wall type as the primary "
             "drivers, all physically interpretable. Code and pipeline are public at "
             "https://github.com/KNHNF/epc-retrofit-potential-ml."
@@ -764,71 +755,28 @@ def build_report(mode="full"):
         )
 
     # ------------------------------------------------------------------
-    # References. UWE Bristol Harvard style.
+    # References. IEEE numeric style, listed in order of first citation.
     # ------------------------------------------------------------------
     doc.add_heading("References", level=1)
 
     add_reference(doc,
-        "Beyer, K., Goldstein, J., Ramakrishnan, R. and Shaft, U. (1999) When is nearest neighbor "
-        "meaningful? ",
-        "International Conference on Database Theory (ICDT), Lecture Notes in Computer Science.",
-        " Vol. 1540, pp. 217-235."
-    )
-    add_reference(doc,
-        "Breiman, L. (2001) Random forests. ",
-        "Machine Learning.",
-        " 45 (1), pp. 5-32."
-    )
-    add_reference(doc,
-        "Breiman, L., Friedman, J.H., Olshen, R.A. and Stone, C.J. (1984) ",
-        "Classification and Regression Trees.",
-        " Belmont, CA: Wadsworth."
-    )
-    add_reference(doc,
-        "Chen, T. and Guestrin, C. (2016) XGBoost: a scalable tree boosting system. ",
-        "Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.",
-        " pp. 785-794."
-    )
-    add_reference(doc,
-        "Cortes, C. and Vapnik, V. (1995) Support-vector networks. ",
-        "Machine Learning.",
-        " 20 (3), pp. 273-297."
-    )
-    add_reference(doc,
-        "Dietterich, T.G. (1998) Approximate statistical tests for comparing supervised "
-        "classification learning algorithms. ",
-        "Neural Computation.",
-        " 10 (7), pp. 1895-1923."
-    )
-    add_reference(doc,
-        "Hardy, A. and Glew, D. (2019) An analysis of errors in the Energy Performance Certificate database. ",
-        "Energy Policy.",
-        " 129, pp. 1168-1178."
-    )
-    add_reference(doc,
-        "McNemar, Q. (1947) Note on the sampling error of the difference between correlated "
-        "proportions or percentages. ",
-        "Psychometrika.",
-        " 12 (2), pp. 153-157."
-    )
-    add_reference(doc,
-        "Ministry of Housing, Communities and Local Government (2024) ",
+        "[1] Ministry of Housing, Communities and Local Government (2024) ",
         "Energy Performance of Buildings Data: England and Wales.",
         " Available from: https://epc.opendatacommunities.org [Accessed 9 July 2026]."
     )
     add_reference(doc,
-        "Ng, A.Y. and Jordan, M.I. (2001) On discriminative vs. generative classifiers: a comparison "
-        "of logistic regression and naive Bayes. ",
-        "Advances in Neural Information Processing Systems 14 (NIPS 2001).",
-        " pp. 841-848."
+        "[2] Seyedzadeh, S., Pour Rahimian, F., Glesk, I. and Roper, M. (2018) Machine learning "
+        "for estimation of building energy consumption and performance: a review. ",
+        "Visualization in Engineering.",
+        " 6 (1), p. 5."
     )
     add_reference(doc,
-        "Pasichnyi, O., Wallin, J. and Kordas, O. (2019) Data-driven building archetypes for "
+        "[3] Pasichnyi, O., Wallin, J. and Kordas, O. (2019) Data-driven building archetypes for "
         "urban building energy modelling. ",
         "Energy.",
         " 181, pp. 360-377."
     )
-    p_pedregosa = add_reference(doc, "Pedregosa, F. ", "et al.", "")
+    p_pedregosa = add_reference(doc, "[4] Pedregosa, F. ", "et al.", "")
     p_pedregosa.runs[1].italic = True
     p_pedregosa.add_run(" (2011) Scikit-learn: machine learning in Python. ").font.size = Pt(10)
     r = p_pedregosa.add_run("Journal of Machine Learning Research.")
@@ -836,22 +784,66 @@ def build_report(mode="full"):
     r.font.size = Pt(10)
     p_pedregosa.add_run(" 12, pp. 2825-2830.").font.size = Pt(10)
     add_reference(doc,
-        "Seyedzadeh, S., Pour Rahimian, F., Glesk, I. and Roper, M. (2018) Machine learning for "
-        "estimation of building energy consumption and performance: a review. ",
-        "Visualization in Engineering.",
-        " 6 (1), p. 5."
+        "[5] Chen, T. and Guestrin, C. (2016) XGBoost: a scalable tree boosting system. ",
+        "Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.",
+        " pp. 785-794."
     )
     add_reference(doc,
-        "Strobl, C., Boulesteix, A-L., Zeileis, A. and Hothorn, T. (2007) Bias in random forest "
-        "variable importance measures: illustrations, sources and a solution. ",
+        "[6] Ng, A.Y. and Jordan, M.I. (2001) On discriminative vs. generative classifiers: a "
+        "comparison of logistic regression and naive Bayes. ",
+        "Advances in Neural Information Processing Systems 14 (NIPS 2001).",
+        " pp. 841-848."
+    )
+    add_reference(doc,
+        "[7] Breiman, L. (2001) Random forests. ",
+        "Machine Learning.",
+        " 45 (1), pp. 5-32."
+    )
+    add_reference(doc,
+        "[8] Breiman, L., Friedman, J.H., Olshen, R.A. and Stone, C.J. (1984) ",
+        "Classification and Regression Trees.",
+        " Belmont, CA: Wadsworth."
+    )
+    add_reference(doc,
+        "[9] Strobl, C., Boulesteix, A-L., Zeileis, A. and Hothorn, T. (2007) Bias in random "
+        "forest variable importance measures: illustrations, sources and a solution. ",
         "BMC Bioinformatics.",
         " 8, p. 25."
     )
     add_reference(doc,
-        "Varma, S. and Simon, R. (2006) Bias in error estimation when using cross-validation "
+        "[10] Cortes, C. and Vapnik, V. (1995) Support-vector networks. ",
+        "Machine Learning.",
+        " 20 (3), pp. 273-297."
+    )
+    add_reference(doc,
+        "[11] Beyer, K., Goldstein, J., Ramakrishnan, R. and Shaft, U. (1999) When is nearest "
+        "neighbor meaningful? ",
+        "International Conference on Database Theory (ICDT), Lecture Notes in Computer Science.",
+        " Vol. 1540, pp. 217-235."
+    )
+    add_reference(doc,
+        "[12] Varma, S. and Simon, R. (2006) Bias in error estimation when using cross-validation "
         "for model selection. ",
         "BMC Bioinformatics.",
         " 7, p. 91."
+    )
+    add_reference(doc,
+        "[13] McNemar, Q. (1947) Note on the sampling error of the difference between correlated "
+        "proportions or percentages. ",
+        "Psychometrika.",
+        " 12 (2), pp. 153-157."
+    )
+    add_reference(doc,
+        "[14] Dietterich, T.G. (1998) Approximate statistical tests for comparing supervised "
+        "classification learning algorithms. ",
+        "Neural Computation.",
+        " 10 (7), pp. 1895-1923."
+    )
+    add_reference(doc,
+        "[15] Hardy, A. and Glew, D. (2019) An analysis of errors in the Energy Performance "
+        "Certificate database. ",
+        "Energy Policy.",
+        " 129, pp. 1168-1178."
     )
 
     # Word count: Introduction through Conclusion only. Title, author block, abstract,
