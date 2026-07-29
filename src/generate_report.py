@@ -649,9 +649,7 @@ def build_report(mode="full", two_column=False):
     doc.add_paragraph(
         "Four algorithms compete: logistic regression as baseline, random forest as the main "
         "model, XGBoost as a strong benchmark, and an SVM, evaluated by nested cross-validation "
-        "and a time-held-out test set, the deployment condition. A rating alone tells a "
-        "homeowner where they stand, not where the money should go; headroom is the number a "
-        "retrofit scheme has to rank properties by."
+        "and a time-held-out test set, the deployment condition."
     )
 
     # ------------------------------------------------------------------
@@ -891,11 +889,14 @@ def build_report(mode="full", two_column=False):
         )
         p_rf.add_run(
             " For feature importance I use permutation importance rather than the default "
-            "impurity-based score (Mean Decrease in Impurity, MDI)."
+            "impurity-based score (Mean Decrease in Impurity, MDI), which is unreliable once "
+            "features mix cardinality the way this set does, one-hot categoricals next to "
+            "continuous numerics."
         )
         fm.add(p_rf,
-            "MDI is known to be unreliable across features of mixed cardinality [9], and this "
-            "feature set mixes one-hot categoricals with continuous numerics."
+            "MDI biases toward high-cardinality and continuous features regardless of whether "
+            "they actually predict the target better, an artefact of how the impurity-reduction "
+            "score is computed, not a real signal [9]."
         )
     else:
         p_rf.add_run(
@@ -913,18 +914,17 @@ def build_report(mode="full", two_column=False):
     if safe:
         p_xgb.add_run(
             "XGBoost was not covered on this module. I add it because boosting is structurally "
-            "different from bagging, testing whether 4.2's result is a property of tree "
-            "ensembles generally, or specific to bagging."
+            "different from bagging: rather than averaging many independent trees, it builds "
+            "trees sequentially, each one correcting the previous ensemble's residual error, "
+            "trading some of bagging's variance reduction for lower bias. That difference is "
+            "the actual test here, whether 4.2's result is a property of tree ensembles "
+            "generally, or specific to bagging."
         )
         fm.add(p_xgb,
-            "Bagging (Random Forest) and boosting (XGBoost) sit on opposite ends of the "
-            "bias-variance tradeoff taught in 4.2: bagging averages many independent, "
-            "low-bias/high-variance trees to cut variance, boosting builds trees sequentially, "
-            "each correcting the previous ensemble's residual error, trading some variance "
-            "reduction for lower bias. I read Chen and Guestrin [5] independently to justify using "
-            "it here, since the module itself did not cover gradient boosting. It extends gradient "
-            "boosting with second-order Taylor approximations of the loss, column subsampling, and "
-            "L1/L2 regularisation, and is one of the strongest published performers on tabular "
+            "I read Chen and Guestrin [5] independently to justify using it here, since the "
+            "module itself did not cover gradient boosting. It extends gradient boosting with "
+            "second-order Taylor approximations of the loss, column subsampling, and L1/L2 "
+            "regularisation, and is one of the strongest published performers on tabular "
             "benchmarks [5]."
         )
         p_xgb.add_run(
@@ -984,12 +984,13 @@ def build_report(mode="full", two_column=False):
         "imbalance in training data. I report F1-macro and ROC-AUC throughout."
     )
     fm.add(p_metrics,
-        "ROC-AUC: area under the receiver operating characteristic curve, a threshold-independent "
-        "ranking score (0.5 is no better than chance, 1.0 is perfect). PR-AUC: the same idea for "
-        "the precision-recall curve, more informative than ROC-AUC on an imbalanced target since "
-        "its baseline is the positive rate, not 0.5. F1-macro: the unweighted average of the "
-        "F1 score (precision/recall balance) across both classes, so the minority class counts as "
-        "much as the majority one."
+        "ROC-AUC is the normalised Mann-Whitney U statistic: the probability that a randomly "
+        "chosen positive scores above a randomly chosen negative, which is also why it stays "
+        "roughly comparable across datasets with different prevalence, unlike PR-AUC, whose own "
+        "baseline shifts with the positive rate. F1-macro rather than F1-weighted specifically: "
+        "weighted support-scales each class's contribution by its frequency, reintroducing the "
+        "same majority-class bias this report argues accuracy already has, macro treats both "
+        "classes as equally worth getting right regardless of how common either one is."
     )
     p_metrics.add_run(
         " Accuracy is not a primary metric here: a model that just predicts the majority class "
@@ -1074,9 +1075,10 @@ def build_report(mode="full", two_column=False):
         )
     p_res = doc.add_paragraph()
     if safe:
-        p_res.add_run(f"Every model clears the no-skill baseline comfortably. {result_sentence.rstrip()}")
+        p_res.add_run(result_sentence.rstrip())
         fm.add(p_res,
-            "No-skill baseline: ROC-AUC 0.5, PR-AUC equal to the positive prevalence."
+            "No-skill baseline: ROC-AUC 0.5, PR-AUC equal to the positive prevalence. Every model "
+            "here clears it comfortably."
         )
         p_res.add_run(
             " The CV-to-test drop shows up for all four and traces back to the temporal shift "
@@ -1097,23 +1099,23 @@ def build_report(mode="full", two_column=False):
     p_pr = doc.add_paragraph()
     if safe:
         p_pr.add_run(
-            "In raw terms, Random Forest scores 92.0% accuracy, 58.7% precision, 86.4% recall. "
-            "Accuracy overstates this: guessing the majority class scores 89.2% free at this "
-            "test set's 10.8% positive rate,"
+            "Table 1's accuracy and recall need one more figure to read correctly: Random "
+            "Forest's precision is 58.7%,"
         )
         fm.add(p_pr,
             "Real numbers from rf_test_preds.npy against y_test.npy, not estimated."
         )
         p_pr.add_run(
-            " so recall does the real work, and F1-macro (Table 1) balances both rather than "
-            "reporting either alone. All four curves sit close together (Fig. 5): the PR curves "
-            "only really separate as recall approaches 1.0, where Random Forest holds precision "
-            "longest."
+            " well below its recall, because guessing the majority class scores 89.2% free at "
+            "this test set's 10.8% positive rate, so recall is the number doing the real work, "
+            "and F1-macro balances both rather than reporting either alone. All four curves sit "
+            "close together (Fig. 5): the PR curves only really separate as recall approaches "
+            "1.0, where Random Forest holds precision longest."
         )
     else:
         p_pr.add_run(
-            "In raw terms, Random Forest scores 92.0% test accuracy, 58.7% precision, and 86.4% "
-            "recall on the held-out set. Accuracy alone overstates the result here: a model that "
+            "Table 1 already gives Random Forest's accuracy and recall on the held-out set; the "
+            "one figure it doesn't carry is precision, 58.7%, well below its recall. A model that "
             "always guessed the majority class would score 89.2% for free at this test set's "
             "10.8% positive rate, so recall is the number actually doing the work, not accuracy. "
             "F1-macro (Table 1) is reported as the headline metric instead of precision or recall "
@@ -1324,12 +1326,11 @@ def build_report(mode="full", two_column=False):
         lead_sentence = "[RESULT: state which model leads once all notebooks have been run.]"
     if safe:
         doc.add_paragraph(
-            "Machine learning can identify high-retrofit-potential properties from observable "
-            f"EPC characteristics with meaningful accuracy. {lead_sentence} For policy use, the "
-            "choice between the top two tree-based models depends on interpretability: Random "
-            "Forest's permutation importances are straightforward to communicate to "
-            "policymakers, while XGBoost's gain-based importances can be biased toward "
-            "high-cardinality features."
+            "For policy use, the choice between the two tree-based models turns on "
+            "interpretability, not the score gap between them (Table 1): Random Forest's "
+            "permutation importances are straightforward to communicate to policymakers, "
+            "while XGBoost's gain-based importances can be biased toward high-cardinality "
+            "features."
         )
     else:
         doc.add_paragraph(
@@ -1626,10 +1627,7 @@ def build_report(mode="full", two_column=False):
     doc.add_heading("9. Conclusion", level=1)
     if winners:
         if safe:
-            conclusion_lead = (
-                f"{winners['best_auc_model']} led on every test-set metric, with the other "
-                "tree-based model close behind."
-            )
+            conclusion_lead = winners['best_auc_model']
         else:
             conclusion_lead = (
                 f"{winners['best_auc_model']} wins on every test-set metric, with the other "
@@ -1641,10 +1639,11 @@ def build_report(mode="full", two_column=False):
         p_conc = doc.add_paragraph()
         p_conc.add_run(
             "This paper presented a pipeline identifying high-retrofit-potential UK properties "
-            f"from EPC open data. {conclusion_lead} Applied to real, held-out Bristol properties "
-            "(Section 7), the model held its recall on an unseen city, not just an unseen time "
-            "period. Current efficiency, CO2 intensity, construction age, and wall type drive the "
-            "predictions, all physically interpretable. These numbers come with real caveats"
+            f"from EPC open data, with {conclusion_lead} the strongest of the four models "
+            "compared. Applied to real, held-out Bristol properties (Section 7), it held its "
+            "recall on an unseen city, not just an unseen time period. Current efficiency, CO2 "
+            "intensity, construction age, and wall type drive the predictions, all physically "
+            "interpretable. These numbers come with real caveats"
         )
         fm.add(p_conc,
             "EPC data-quality problems and a 200,000-record sample rather than the full 7.25 "
