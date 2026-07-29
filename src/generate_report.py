@@ -927,8 +927,11 @@ def build_report(mode="full", two_column=False):
     p_svm = doc.add_paragraph()
     if safe:
         p_svm.add_run(
-            "SVM and kNN sit here as reference points, not primary candidates: Table 1 reports "
-            "SVM's full metrics, and kNN was never fitted."
+            "SVM and kNN sit here as reference points, not primary candidates. SVM tests whether "
+            "a maximum-margin linear boundary does any better than Logistic Regression's own "
+            "linear boundary once both are compared on equal footing (SVM's probabilities are "
+            "Platt-calibrated for this reason); Table 1 reports its full metrics. kNN was never "
+            "fitted."
         )
         fm.add(p_svm,
             "LinearSVC has no native probability output, hence CalibratedClassifierCV (Platt "
@@ -943,7 +946,10 @@ def build_report(mode="full", two_column=False):
         p_svm.add_run(
             "SVM (linear kernel, Platt-calibrated via CalibratedClassifierCV since LinearSVC has "
             "no native probability output [10]) and kNN sit in this report as reference points, "
-            "not primary candidates alongside Random Forest and XGBoost. Table 1 reports SVM's "
+            "not primary candidates alongside Random Forest and XGBoost. SVM specifically tests "
+            "whether a maximum-margin linear boundary does any better than Logistic Regression's "
+            "own linear boundary once both are compared on equal footing, calibrated probabilities "
+            "included. Table 1 reports SVM's "
             "full test-set metrics for completeness. kNN was never fitted: past roughly 10-15 "
             "dimensions the distance to the nearest neighbour converges toward the distance to "
             "the farthest one, and Euclidean distance stops carrying useful discriminative signal "
