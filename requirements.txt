@@ -6,3 +6,7 @@ seaborn>=0.12
 xgboost>=2.0
 jupyter>=1.0
 pytest>=7.0
+statsmodels>=0.14
+latex2mathml>=3.0
+contextily>=1.5
+pyproj>=3.6
