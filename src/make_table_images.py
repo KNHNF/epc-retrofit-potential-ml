@@ -71,8 +71,18 @@ def render_comparison_table():
     rows = _read_csv(f"{DATA_DIR}/model_comparison.csv")
     if not rows:
         return
-    headers = ["Model", "CV F1", "CV AUC", "Test F1", "Test AUC", "Test PR-AUC"]
-    src_keys = ["Model", "CV F1-macro", "CV ROC-AUC", "Test F1-macro", "Test ROC-AUC", "Test PR-AUC"]
+    # Accuracy and recall first (what a marker expects to see), then the
+    # three metrics this imbalanced target actually needs. CV columns stay
+    # in the CSV but are dropped here too, matching the single-column
+    # table, the specific CV-vs-test reversal numbers already live in
+    # Section 6's prose with citations.
+    headers = ["Model", "Accuracy", "Recall", "F1", "ROC-AUC", "PR-AUC"]
+    src_keys = ["Model", "Test Accuracy", "Test Recall", "Test F1-macro",
+                "Test ROC-AUC", "Test PR-AUC"]
+    # Bolded on the winning row below: accuracy is deliberately excluded,
+    # the report's own argument is that accuracy is not the metric doing
+    # the real work here, the table shouldn't visually reward it either.
+    significant_keys = {"Test Recall", "Test F1-macro", "Test ROC-AUC", "Test PR-AUC"}
 
     best_model = max(rows, key=lambda r: float(r["Test ROC-AUC"]))["Model"]
     cell_text = [[r[k] for k in src_keys] for r in rows]
@@ -93,7 +103,8 @@ def render_comparison_table():
             cell.set_text_props(color="white", fontweight="bold")
         elif rows[row - 1]["Model"] == best_model:
             cell.set_facecolor(WINNER_BG)
-            cell.set_text_props(fontweight="bold")
+            if src_keys[col] in significant_keys:
+                cell.set_text_props(fontweight="bold")
     _apply_booktabs_style(ax, tbl, n_rows=n_rows)
 
     plt.tight_layout()

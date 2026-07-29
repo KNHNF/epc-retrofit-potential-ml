@@ -319,23 +319,41 @@ def shade_cell(cell, hex_color):
     cell._tc.get_or_add_tcPr().append(shd)
 
 
+# Displayed columns and order: the metrics a marker expects to see first
+# (accuracy, recall, F1), the imbalance-aware ones that actually decide this
+# report's conclusions after (ROC-AUC, PR-AUC). CV F1/CV ROC-AUC stay in the
+# CSV (real, useful data) but are dropped from this table: the specific
+# CV-vs-test reversal numbers are already stated with citations in Section 6,
+# repeating them here just added two columns' worth of width pressure for no
+# new information.
+COMPARISON_DISPLAY_COLS = [
+    'Model', 'Test Accuracy', 'Test Recall', 'Test F1-macro',
+    'Test ROC-AUC', 'Test PR-AUC',
+]
 COMPARISON_HEADER_DISPLAY = {
     'Model': 'Model',
-    'CV F1-macro': 'CV F1',
-    'CV ROC-AUC': 'CV AUC',
-    'Test F1-macro': 'Test F1',
-    'Test ROC-AUC': 'Test AUC',
-    'Test PR-AUC': 'Test PR-AUC',
+    'Test Accuracy': 'Accuracy',
+    'Test Recall': 'Recall',
+    'Test F1-macro': 'F1',
+    'Test ROC-AUC': 'ROC-AUC',
+    'Test PR-AUC': 'PR-AUC',
+}
+# Bolded on the winning row: the metrics that actually decide this report's
+# conclusions under class imbalance. Accuracy is deliberately excluded, even
+# on the winning row, the report's own argument is that accuracy is not the
+# metric doing the real work here (Section 4.5), so the table shouldn't
+# visually reward it either.
+COMPARISON_SIGNIFICANT_COLS = {
+    'Test Recall', 'Test F1-macro', 'Test ROC-AUC', 'Test PR-AUC',
 }
 COMPARISON_COL_WIDTHS_IN = {
     # Sum must stay under ~6.2in (the floating table box width in two-column
-    # mode, itself close to the full usable page width). The previous
-    # widths summed to 6.6in, wider than the box: Word silently failed to
-    # render the whole table rather than clipping or shrinking it, found by
-    # reading the raw docx XML (the table WAS there, correctly built) after
-    # it rendered as nothing in real Word.
-    'Model': 1.2, 'CV F1-macro': 1.05, 'CV ROC-AUC': 1.05,
-    'Test F1-macro': 0.95, 'Test ROC-AUC': 0.95, 'Test PR-AUC': 0.9,
+    # mode, itself close to the full usable page width). Widths above that
+    # sum: Word silently failed to render the whole table rather than
+    # clipping or shrinking it, found by reading the raw docx XML (the table
+    # WAS there, correctly built) after it rendered as nothing in real Word.
+    'Model': 1.15, 'Test Accuracy': 1.0, 'Test Recall': 0.95,
+    'Test F1-macro': 0.85, 'Test ROC-AUC': 0.9, 'Test PR-AUC': 0.9,
 }
 
 
@@ -352,7 +370,7 @@ def add_comparison_table(doc, rows, winners):
         return
 
     best_model = winners['best_auc_model'] if winners else None
-    headers = list(rows[0].keys())
+    headers = [h for h in COMPARISON_DISPLAY_COLS if h in rows[0]]
     table = doc.add_table(rows=len(rows) + 1, cols=len(headers))
     table.style = 'Table Grid'
 
@@ -380,7 +398,7 @@ def add_comparison_table(doc, rows, winners):
                 for run in para.runs:
                     run.font.size = Pt(9)
                     run.font.name = 'Times New Roman'
-                    if is_winner:
+                    if is_winner and key in COMPARISON_SIGNIFICANT_COLS:
                         run.bold = True
 
     set_column_widths(table, headers, COMPARISON_COL_WIDTHS_IN)
@@ -1005,11 +1023,13 @@ def build_report(mode="full", two_column=False):
     doc.add_heading("5. Results", level=1)
     doc.add_heading("5.1 Model Comparison", level=2)
     doc.add_paragraph(
-        "Table 1 presents the nested cross-validation scores on the training set and the final "
-        "held-out test set scores for all four models."
+        "Table 1 presents test-set performance across five metrics: accuracy and recall, then "
+        "F1, ROC-AUC, and PR-AUC, bolded on the winning row. Accuracy is not bolded, Section 4.5 "
+        "argues it is not the metric doing the real work here. Nested cross-validation scores are "
+        "discussed with the specific figures in Section 6."
     )
 
-    cap1 = doc.add_paragraph("Table 1. Model comparison: nested CV and test set performance.")
+    cap1 = doc.add_paragraph("Table 1. Model comparison: test-set performance across five metrics.")
     cap1.alignment = WD_ALIGN_PARAGRAPH.CENTER
     cap1.runs[0].italic = True
     cap1.runs[0].font.size = Pt(10)
@@ -1760,7 +1780,14 @@ def build_report(mode="full", two_column=False):
     # paragraphs either way. Matching on the caption prefix, not full equality,
     # excludes any caption regardless of how much description it carries, so
     # writing a proper one-line caption never costs body word budget.
-    caption_re = re.compile(r"^(Fig|Table)\.?\s*\d+\.?(\s|$)")
+    # The period after the number is load-bearing, not decorative: without it,
+    # this also matched a genuine body sentence, "Table 1 presents test-set
+    # performance...", and silently dropped 75 real words from the count
+    # (found by listing every paragraph this regex matched and checking each
+    # one was an actual caption, not assumed). Every real caption in this
+    # report has the period; ordinary prose referencing a table or figure by
+    # number does not.
+    caption_re = re.compile(r"^(Fig|Table)\.?\s*\d+\.(\s|$)")
     word_count = 0
     if body_start is not None and body_end is not None:
         for p in doc.paragraphs[body_start:body_end]:
