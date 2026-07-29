@@ -32,5 +32,6 @@ report/model/*.onnx
 HANDOFF.md
 EPC_PLAN.md
 CLAUDE.md
+REPORT_POLISH_CHECKLIST.md
 *.tmp
 ~$*
