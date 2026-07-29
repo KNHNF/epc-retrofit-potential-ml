@@ -23,10 +23,16 @@ report/*.pdf
 
 # Trained model binaries (too large for a normal git push, GitHub rejects
 # anything over 100MB outright; the real Random Forest export is ~200MB.
-# Distributed via a GitHub Release asset instead -- see web/index.html's
-# MODEL_URL and DEPLOY_STEPS.md. feature_schema.json is small and IS tracked,
-# it's just data (column names/categories), not a binary.
+# feature_schema.json is small and IS tracked, it's just data (column
+# names/categories), not a binary.
 report/model/*.onnx
+
+# Browser demo: scaffolded but unfinished. MODEL_URL is still a literal
+# placeholder ("REPLACE_WITH_GITHUB_RELEASE_ASSET_URL"), no ONNX model has
+# been uploaded as a release asset, and it has never been deployed anywhere.
+# Excluding it rather than shipping a page that visibly doesn't work; bring
+# it back once the model is hosted and the URL is wired in for real.
+web/
 
 # Local-only session log, never committed or pushed
 HANDOFF.md
