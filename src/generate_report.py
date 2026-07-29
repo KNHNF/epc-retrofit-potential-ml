@@ -1322,7 +1322,7 @@ def build_report(mode="full", two_column=False):
             "diagrams in Fig. 7, biased toward recall rather than accuracy, rather than trust a "
             "threshold picked once at launch."
         )
-    doc.add_paragraph("There are five main limitations.")
+    doc.add_paragraph("There are six main limitations.")
     if safe:
         limitation_items = [
             "Data quality. The true EPC error rate is estimated at 36-62% once assessor "
@@ -1337,6 +1337,9 @@ def build_report(mode="full", two_column=False):
             "Single temporal split, not a rolling backtest. Evaluation uses one static "
             "2020-2024/2025-2026 split, not walk-forward retraining across several periods, so "
             "it cannot show whether performance is stable or drifting over time.",
+            "Fairness across subgroups. Performance is reported in aggregate; whether accuracy "
+            "holds evenly across property type, tenure, or region was not separately checked, a "
+            "real gap for a policy-facing tool.",
         ]
     else:
         limitation_items = [
@@ -1362,6 +1365,10 @@ def build_report(mode="full", two_column=False):
             "split, but that is a different problem from this one: a single train/test split still "
             "cannot show whether performance is stable, improving, or drifting across successive "
             "periods, only that it holds on this one boundary.",
+            "Fairness across subgroups. All reported metrics are aggregate figures; whether the "
+            "model performs equally well across property type, tenure, or region categories was "
+            "not separately tested, a real gap for a tool intended to inform policy decisions that "
+            "affect different kinds of properties differently.",
         ]
     for item in limitation_items:
         lp = doc.add_paragraph(style='List Number')
