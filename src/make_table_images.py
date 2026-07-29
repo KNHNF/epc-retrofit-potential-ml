@@ -28,11 +28,43 @@ FIGURES_DIR = "report/figures"
 HEADER_BG = "#2F2F2F"
 WINNER_BG = "#E8F0E3"
 ERROR_BG = "#F5DCDC"
+RULE_COLOR = "#333333"
 
 
 def _read_csv(path):
     with open(path, newline="") as f:
         return list(csv.DictReader(f))
+
+
+def _apply_booktabs_style(ax, tbl, n_rows):
+    """Journal-style rules only (thick top, thin under the header, thick
+    bottom), no vertical gridlines and no lines between data rows. Matches
+    the reference table style shared for comparison, and the standard
+    "booktabs" convention most published papers actually use; the full grid
+    this project used before read as a spreadsheet export, not a typeset
+    table.
+
+    Cell.visible_edges looks like the obvious tool for this (set 'T' on the
+    header row, 'B' on the last row, nothing elsewhere), and it does draw
+    the right lines, but it silently makes the WHOLE cell invisible,
+    facecolor and text included, the moment a cell's edges aren't the full
+    default set. Confirmed by isolating it: a cell with all four edges
+    renders correctly; the same cell with only one edge set renders
+    nothing at all, not even its dark header fill. Rather than fight that,
+    every cell keeps its default (closed) edges but coloured to match its
+    own fill so they're invisible, and the three real rules are drawn as
+    plain Line2D segments across the whole table instead, independent of
+    the cell grid entirely. Requires the table's bbox to be the axes'
+    full [0, 0, 1, 1] so each row's y-position is exactly 1/n_rows,
+    known in advance rather than queried from cell geometry that isn't
+    finalised until a draw event happens."""
+    for (row, col), cell in tbl.get_celld().items():
+        cell.set_edgecolor(cell.get_facecolor())
+        cell.set_linewidth(0.5)
+    row_h = 1.0 / n_rows
+    for y, lw in [(1.0, 1.6), (1.0 - row_h, 0.9), (0.0, 1.6)]:
+        ax.plot([0, 1], [y, y], color=RULE_COLOR, linewidth=lw,
+                transform=ax.transAxes, clip_on=False, zorder=10)
 
 
 def render_comparison_table():
@@ -45,21 +77,24 @@ def render_comparison_table():
     best_model = max(rows, key=lambda r: float(r["Test ROC-AUC"]))["Model"]
     cell_text = [[r[k] for k in src_keys] for r in rows]
 
-    fig, ax = plt.subplots(figsize=(9.5, 0.55 * (len(rows) + 1)))
+    n_rows = len(rows) + 1
+    fig, ax = plt.subplots(figsize=(9.5, 0.55 * n_rows))
     ax.axis("off")
-    tbl = ax.table(cellText=cell_text, colLabels=headers, cellLoc="center", loc="center")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    tbl = ax.table(cellText=cell_text, colLabels=headers, cellLoc="center",
+                   loc="center", bbox=[0, 0, 1, 1])
     tbl.auto_set_font_size(False)
     tbl.set_fontsize(11)
-    tbl.scale(1, 2.0)
 
     for (row, col), cell in tbl.get_celld().items():
-        cell.set_edgecolor("#888888")
         if row == 0:
             cell.set_facecolor(HEADER_BG)
             cell.set_text_props(color="white", fontweight="bold")
         elif rows[row - 1]["Model"] == best_model:
             cell.set_facecolor(WINNER_BG)
             cell.set_text_props(fontweight="bold")
+    _apply_booktabs_style(ax, tbl, n_rows=n_rows)
 
     plt.tight_layout()
     plt.savefig(f"{FIGURES_DIR}/table1_model_comparison.png", dpi=220, bbox_inches="tight")
@@ -84,20 +119,23 @@ def render_bristol_table():
             pred, actual,
         ])
 
-    fig, ax = plt.subplots(figsize=(9.5, 0.55 * (len(rows) + 1)))
+    n_rows = len(rows) + 1
+    fig, ax = plt.subplots(figsize=(9.5, 0.55 * n_rows))
     ax.axis("off")
-    tbl = ax.table(cellText=cell_text, colLabels=headers, cellLoc="center", loc="center")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    tbl = ax.table(cellText=cell_text, colLabels=headers, cellLoc="center",
+                   loc="center", bbox=[0, 0, 1, 1])
     tbl.auto_set_font_size(False)
     tbl.set_fontsize(11)
-    tbl.scale(1, 2.0)
 
     for (row, col), cell in tbl.get_celld().items():
-        cell.set_edgecolor("#888888")
         if row == 0:
             cell.set_facecolor(HEADER_BG)
             cell.set_text_props(color="white", fontweight="bold")
         elif mismatches[row - 1]:
             cell.set_facecolor(ERROR_BG)
+    _apply_booktabs_style(ax, tbl, n_rows=n_rows)
 
     plt.tight_layout()
     plt.savefig(f"{FIGURES_DIR}/table2_bristol.png", dpi=220, bbox_inches="tight")
