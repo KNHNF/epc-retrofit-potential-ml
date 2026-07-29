@@ -677,7 +677,8 @@ def build_report(mode="full", two_column=False):
     )
     add_figure(doc,
         f"{FIGURES_DIR}/01_class_balance.png",
-        "Fig. 1.",
+        "Fig. 1. Target class distribution, training set (left, 2020-2024) and test set (right, "
+        "2025-2026); the positive rate nearly halves between the two.",
         two_column=two_column, dense=True
     )
 
@@ -692,19 +693,42 @@ def build_report(mode="full", two_column=False):
             "missing in 89.3% of records and is dropped; a second cluster is missing in 14.7% "
             "and is median/mode-imputed. A small fraction (~0.1%) carry physically impossible "
             "negative values in energy, emissions, or cost fields and are removed as sentinel or "
-            "data-entry errors. A Pearson correlation check (Fig. 3) surfaces two near-collinear "
-            "feature pairs,"
+            "data-entry errors."
         )
-        fm.add(p_eda1,
+        add_figure(doc,
+            f"{FIGURES_DIR}/02_missing_values.png",
+            "Fig. 2. Missing-value rate by column, training sample. FLOOR_ENERGY_EFF (89.3% "
+            "missing) is dropped; the second cluster above the 5% threshold is imputed rather "
+            "than dropped.",
+            width=5.5, two_column=two_column, dense=True
+        )
+        p_eda2 = doc.add_paragraph()
+        p_eda2.add_run("A Pearson correlation check (Fig. 3) surfaces two near-collinear feature pairs,")
+        fm.add(p_eda2,
             "CO2 emissions per floor area correlates with total energy consumption at r=0.98, and "
             "habitable-room count with heated-room count at r=0.97 (training sample, n=200,000)."
         )
-        p_eda1.add_run(
+        p_eda2.add_run(
             " kept rather than dropped because split-based ensembles are not destabilised by "
-            "correlated inputs the way linear coefficients are (Section 4.1). Construction age "
-            "band shows a clear relationship with the target (Fig. 4): pre-1966 properties carry "
-            "the highest retrofit-potential rate, consistent with Section 5.3's permutation "
-            "importances."
+            "correlated inputs the way linear coefficients are (Section 4.1)."
+        )
+        add_figure(doc,
+            f"{FIGURES_DIR}/04_correlation_heatmap.png",
+            "Fig. 3. Pearson correlation matrix, numeric features and target. Darkest off-diagonal "
+            "cells mark the two near-collinear pairs discussed in the text.",
+            width=5.5, two_column=two_column, dense=True
+        )
+        p_eda3 = doc.add_paragraph()
+        p_eda3.add_run(
+            "Construction age band shows a clear relationship with the target (Fig. 4): pre-1966 "
+            "properties carry the highest retrofit-potential rate, consistent with Section 5.3's "
+            "permutation importances."
+        )
+        add_figure(doc,
+            f"{FIGURES_DIR}/06_retrofit_rate_by_age.png",
+            "Fig. 4. Retrofit-potential rate by construction age band, oldest properties (left) to "
+            "newest (right), against the overall training-set mean of 21.7%.",
+            width=5.5, two_column=two_column, dense=False
         )
     else:
         doc.add_paragraph(
@@ -725,6 +749,13 @@ def build_report(mode="full", two_column=False):
             "cost fields; these are sentinel or data-entry errors rather than real measurements, "
             "so the affected records are dropped, consistent with the efficiency range filter."
         )
+        add_figure(doc,
+            f"{FIGURES_DIR}/02_missing_values.png",
+            "Fig. 2. Missing-value rate by column, training sample. FLOOR_ENERGY_EFF (89.3% "
+            "missing) is dropped; the second cluster above the 5% threshold is imputed rather "
+            "than dropped.",
+            width=5.5, two_column=two_column, dense=True
+        )
         doc.add_paragraph(
             "A Pearson correlation matrix over the numeric features (Fig. 3) surfaces two "
             "near-collinear pairs: CO2 emissions per floor area against total energy consumption "
@@ -733,6 +764,12 @@ def build_report(mode="full", two_column=False):
             "feature over another without the estimate instability that collinearity causes for a "
             "linear model's coefficients, which is one concrete reason Logistic Regression is kept "
             "as a baseline rather than promoted to the main model (Section 4.1)."
+        )
+        add_figure(doc,
+            f"{FIGURES_DIR}/04_correlation_heatmap.png",
+            "Fig. 3. Pearson correlation matrix, numeric features and target. Darkest off-diagonal "
+            "cells mark the two near-collinear pairs discussed in the text.",
+            width=5.5, two_column=two_column, dense=True
         )
         doc.add_paragraph(
             "Construction age band shows a clear relationship with the target (Fig. 4): pre-1966 "
@@ -743,23 +780,12 @@ def build_report(mode="full", two_column=False):
             "where retrofit headroom actually sits, and it is consistent with construction age band "
             "ranking highly in the Random Forest permutation importances reported in Section 5.3."
         )
-    # Floating figures cross both columns without a section break, so
-    # these three no longer need any column-switch wrapping at all.
-    add_figure(doc,
-        f"{FIGURES_DIR}/02_missing_values.png",
-        "Fig. 2.",
-        width=5.5, two_column=two_column, dense=True
-    )
-    add_figure(doc,
-        f"{FIGURES_DIR}/04_correlation_heatmap.png",
-        "Fig. 3.",
-        width=5.5, two_column=two_column, dense=True
-    )
-    add_figure(doc,
-        f"{FIGURES_DIR}/06_retrofit_rate_by_age.png",
-        "Fig. 4.",
-        width=5.5, two_column=two_column, dense=False
-    )
+        add_figure(doc,
+            f"{FIGURES_DIR}/06_retrofit_rate_by_age.png",
+            "Fig. 4. Retrofit-potential rate by construction age band, oldest properties (left) to "
+            "newest (right), against the overall training-set mean of 21.7%.",
+            width=5.5, two_column=two_column, dense=False
+        )
 
     # ------------------------------------------------------------------
     # 3. Problem Definition
@@ -1074,7 +1100,7 @@ def build_report(mode="full", two_column=False):
 
     add_figure(doc,
         f"{FIGURES_DIR}/all_models_roc_pr.png",
-        "Fig. 5.",
+        "Fig. 5. ROC curves (left) and precision-recall curves (right), all four models, test set.",
         two_column=two_column, dense=True
     )
 
@@ -1136,7 +1162,8 @@ def build_report(mode="full", two_column=False):
 
     add_figure(doc,
         f"{FIGURES_DIR}/rf_permutation_importances.png",
-        "Fig. 6.",
+        "Fig. 6. Random Forest permutation importances, top 20 features, test set. Error bars show "
+        "variation across repeated shuffles.",
         two_column=two_column, dense=True
     )
 
@@ -1246,7 +1273,8 @@ def build_report(mode="full", two_column=False):
     )
     add_figure(doc,
         f"{FIGURES_DIR}/calibration_curves.png",
-        "Fig. 7.",
+        "Fig. 7. Calibration curves (reliability diagrams), all four models, test set. The "
+        "diagonal marks perfect calibration; every model sits below it.",
         two_column=two_column, dense=False
     )
 
@@ -1450,7 +1478,8 @@ def build_report(mode="full", two_column=False):
             )
             add_figure(doc,
                 f"{FIGURES_DIR}/07_bristol_district_map.png",
-                "Fig. 8.",
+                "Fig. 8. Predicted retrofit-potential rate by Bristol postcode district, test "
+                "set; marker area scales with the number of test-set properties in that district.",
                 two_column=two_column, dense=True
             )
         cap_bristol = doc.add_paragraph()
@@ -1715,20 +1744,23 @@ def build_report(mode="full", two_column=False):
         if p.text.strip() == "References":
             body_end = i
             break
-    # Figure labels ("Fig. 1.") are captions, not prose, and single-column mode
-    # already excludes them for free (they live inside a table cell, which
-    # doc.paragraphs never sees). Two-column mode places the same label as a
-    # top-level paragraph (add_floating_picture), so it WOULD get counted here
-    # unless explicitly skipped, previously making the two layouts of the same
-    # text disagree by a few words. Skipping the pattern in both modes keeps
-    # the count comparable regardless of layout.
-    fig_label_re = re.compile(r"^Fig\.\s*\d+\.?$")
+    # Figure and table captions ("Fig. 2. Missing-value rate...", "Table 1. Model
+    # comparison...") are captions, not prose, and standard academic convention
+    # excludes them from a body word count the same way references and footnotes
+    # are excluded here. Single-column mode used to exclude bare "Fig. N." labels
+    # for free (they live inside a table cell, which doc.paragraphs never sees),
+    # but that only worked for the old bare labels, not a real descriptive
+    # caption, and two-column mode's floating-picture labels are top-level
+    # paragraphs either way. Matching on the caption prefix, not full equality,
+    # excludes any caption regardless of how much description it carries, so
+    # writing a proper one-line caption never costs body word budget.
+    caption_re = re.compile(r"^(Fig|Table)\.?\s*\d+\.?(\s|$)")
     word_count = 0
     if body_start is not None and body_end is not None:
         for p in doc.paragraphs[body_start:body_end]:
             if p.style.name.startswith('Heading'):
                 continue
-            if fig_label_re.match(p.text.strip()):
+            if caption_re.match(p.text.strip()):
                 continue
             word_count += len(p.text.split())
 

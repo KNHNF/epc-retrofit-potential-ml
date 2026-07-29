@@ -278,19 +278,29 @@ def add_floating_picture(doc, image_path, label, width_in=6.2, caption_below=Tru
     drawing (`wp:inline`), which is always constrained to the width of
     whatever column it's placed in. This builds a `wp:anchor` instead.
 
-    `label` is a short tag only ("Fig. 1." / "Table 1."), placed ABOVE
-    the image, left-aligned, bold, not italic, matching the 92/100 NLP
-    exemplar's box style: the figure number sits inside the bordered box
-    with the figure, the actual description and interpretation of what it
-    shows lives in the surrounding body prose, not in a long caption
-    underneath. Do not pass a full descriptive sentence here, write that
-    into the body paragraph before or after calling this instead. A real
-    1x1 bordered table cannot be used here (that is what `add_bordered_
-    picture` does for column-width figures): a table inside a two-column
-    section cannot cross the column gutter, confirmed broken three
-    separate ways in real Word (see the table-floating notes below), so
-    the label is a plain paragraph directly above the picture's own
-    border instead."""
+    `label` is a real one-line descriptive caption ("Fig. 3. Pearson
+    correlation matrix, numeric features and target."), placed BELOW the
+    image, left-aligned, bold, not italic, matching standard IEEE style
+    for figures (captions below; only table captions go above). Earlier
+    drafts used a bare tag ("Fig. 1.") ABOVE the image, matching the
+    92/100 NLP exemplar's box style, with the description living only in
+    the surrounding body prose. Changed on two counts: a bare tag reads as
+    unfinished next to a real caption, and a caption ABOVE a floating
+    anchor is genuinely unreliable here, not just a style choice. The
+    anchor's vertical position is computed relative to the paragraph that
+    holds the drawing; when a real multi-line caption came first, its
+    height was not always known yet by the time the anchor's position was
+    resolved, and LibreOffice's renderer would visibly split the caption's
+    own lines around the image (confirmed by rendering to PDF and
+    inspecting the page, not assumed). Putting the caption after the
+    image removes the ambiguity entirely, since nothing is anchored
+    relative to it. Interpretation (what the figure means, why it
+    matters) still belongs in body prose, not repeated in the caption.
+    A real 1x1 bordered table cannot be used here (that is what
+    `add_bordered_picture` does for column-width figures): a table inside
+    a two-column section cannot cross the column gutter, confirmed broken
+    three separate ways in real Word (see the table-floating notes
+    below)."""
     rid, image = doc.part.get_or_add_image(image_path)
     width_emu = Emu(int(width_in * 914400))
     cx, cy = image.scaled_dimensions(width_emu, None)
@@ -298,19 +308,10 @@ def add_floating_picture(doc, image_path, label, width_in=6.2, caption_below=Tru
     rel_height = _next_rel_height[0]
     _next_rel_height[0] += 1
 
-    lbl = doc.add_paragraph()
-    lbl.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    lbl.paragraph_format.space_before = Pt(6)
-    lbl.paragraph_format.space_after = Pt(2)
-    lbl_run = lbl.add_run(label)
-    lbl_run.bold = True
-    lbl_run.font.size = Pt(10)
-    lbl_run.font.name = caption_font
-
     holder = doc.add_paragraph()
     holder.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    holder.paragraph_format.space_before = Pt(0)
-    holder.paragraph_format.space_after = Pt(10)
+    holder.paragraph_format.space_before = Pt(6)
+    holder.paragraph_format.space_after = Pt(2)
     run = holder.add_run()
 
     drawing = OxmlElement('w:drawing')
@@ -411,19 +412,34 @@ def add_floating_picture(doc, image_path, label, width_in=6.2, caption_below=Tru
     drawing.append(anchor)
     run._r.append(drawing)
 
+    lbl = doc.add_paragraph()
+    lbl.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    lbl.paragraph_format.space_before = Pt(2)
+    lbl.paragraph_format.space_after = Pt(10)
+    # keep_together: a real multi-line caption should not have its own
+    # lines split by a column break; nothing is anchored relative to this
+    # paragraph any more (the image above it is self-contained), so this
+    # is a plain, safe keep-together with no positioning side effects.
+    lbl.paragraph_format.keep_together = True
+    lbl_run = lbl.add_run(label)
+    lbl_run.bold = True
+    lbl_run.font.size = Pt(10)
+    lbl_run.font.name = caption_font
+
     return holder
 
 
 def add_bordered_picture(doc, image_path, label, width_in=2.8,
                           caption_font="Times New Roman"):
     """An in-column figure: sized to fit inside one column, placed inline
-    (no column switch, no floating). This is the literal technique from
-    the 92/100 NLP exemplar: a real 1x1 table with a visible border, the
-    figure number ("Fig. 1.") as a plain bold line at the TOP-LEFT inside
-    the cell, the image directly below it in the same cell, no separate
-    italic caption underneath. What the figure actually shows belongs in
-    the surrounding body prose (the discussion around where this is
-    called), not repeated inside the box.
+    (no column switch, no floating). Based on the 92/100 NLP exemplar's
+    layout technique, a real 1x1 table with a visible border, a bold line
+    at the TOP-LEFT inside the cell, the image directly below it in the
+    same cell. `label` is now a real one-line descriptive caption ("Fig.
+    1. Target class distribution, training set (left) and test set
+    (right)."), not the bare tag the exemplar itself used; interpretation
+    of what the figure means still belongs in the surrounding body prose,
+    the caption only states what it shows.
 
     A real table works here because this figure is never asked to cross
     the column gutter, it is exactly one column wide. `add_floating_
