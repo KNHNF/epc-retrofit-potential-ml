@@ -312,12 +312,13 @@ def add_floating_picture(doc, image_path, label, width_in=6.2, caption_below=Tru
     holder.alignment = WD_ALIGN_PARAGRAPH.CENTER
     holder.paragraph_format.space_before = Pt(12)
     holder.paragraph_format.space_after = Pt(2)
+    holder.paragraph_format.keep_with_next = True
     run = holder.add_run()
 
     drawing = OxmlElement('w:drawing')
     anchor = OxmlElement('wp:anchor')
     for k, v in {
-        'behindDoc': '0', 'distT': '91440', 'distB': '228600', 'distL': '91440',
+        'behindDoc': '0', 'distT': '91440', 'distB': '457200', 'distL': '91440',
         'distR': '91440', 'simplePos': '0', 'locked': '0', 'layoutInCell': '1',
         'allowOverlap': '0', 'relativeHeight': str(rel_height),
     }.items():
@@ -416,43 +417,25 @@ def add_floating_picture(doc, image_path, label, width_in=6.2, caption_below=Tru
     lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
     lbl.paragraph_format.space_before = Pt(2)
     lbl.paragraph_format.space_after = Pt(14)
-    # keep_together: a real multi-line caption should not have its own
-    # lines split by a column break; nothing is anchored relative to this
-    # paragraph any more (the image above it is self-contained), so this
-    # is a plain, safe keep-together with no positioning side effects.
     lbl.paragraph_format.keep_together = True
-    lbl_run = lbl.add_run(label)
-    lbl_run.italic = True
-    lbl_run.font.size = Pt(10)
-    lbl_run.font.name = caption_font
+    if label and label.strip():
+        lbl_run = lbl.add_run(label)
+        lbl_run.italic = True
+        lbl_run.font.size = Pt(10)
+        lbl_run.font.name = caption_font
+    else:
+        lbl.paragraph_format.space_after = Pt(8)
 
     return holder
 
 
 def add_bordered_picture(doc, image_path, label, width_in=2.8,
                           caption_font="Times New Roman"):
-    """An in-column figure: sized to fit inside one column, placed inline
-    (no column switch, no floating), no border. Plain centred image, then
-    a real italic caption centred below it, matching how a genuine
-    published paper does it (confirmed directly against Bunn et al. 2021,
-    IEEE Transactions on Power Systems, Fig. 1: caption below the figure,
-    inside the same column, not bold, not boxed) and Karan's own Big Data
-    Part 1 discussion paper, which uses the same italic-centred-caption-
-    below convention and reads noticeably more spacious than this report
-    did before this fix.
-
-    Earlier drafts used a bordered 1x1 table with a bold label ABOVE the
-    image (the 92/100 NLP exemplar's own technique), which is defensible
-    but does not match what either a real journal paper or Karan's better
-    -received Big Data report actually does, and read as cramped once the
-    caption became a real sentence rather than a bare tag: no space
-    before the caption, none after it before the next paragraph starts.
-    Dropped the border and table entirely, moved the caption below, and
-    added real spacing on both sides so the figure reads as a distinct
-    block, not text running straight into it."""
+    """In-column figure: centred image, italic caption below, glued together."""
     p_img = doc.add_paragraph()
     p_img.paragraph_format.space_before = Pt(12)
     p_img.paragraph_format.space_after = Pt(2)
+    p_img.paragraph_format.keep_with_next = True
     p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p_img.add_run()
     run.add_picture(image_path, width=Inches(width_in))
@@ -460,12 +443,13 @@ def add_bordered_picture(doc, image_path, label, width_in=2.8,
     p_label = doc.add_paragraph()
     p_label.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_label.paragraph_format.space_before = Pt(0)
-    p_label.paragraph_format.space_after = Pt(14)
+    p_label.paragraph_format.space_after = Pt(12)
     p_label.paragraph_format.keep_together = True
-    r_label = p_label.add_run(label)
-    r_label.italic = True
-    r_label.font.size = Pt(10)
-    r_label.font.name = caption_font
+    if label and label.strip():
+        r_label = p_label.add_run(label)
+        r_label.italic = True
+        r_label.font.size = Pt(10)
+        r_label.font.name = caption_font
     return p_label
 
 
