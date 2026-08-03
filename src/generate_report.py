@@ -341,7 +341,7 @@ COMPARISON_HEADER_DISPLAY = {
 # Bolded on the winning row: the metrics that actually decide this report's
 # conclusions under class imbalance. Accuracy is deliberately excluded, even
 # on the winning row, the report's own argument is that accuracy is not the
-# metric doing the real work here (Section 4.5), so the table shouldn't
+# metric doing the real work here (Section 4), so the table shouldn't
 # visually reward it either.
 COMPARISON_SIGNIFICANT_COLS = {
     'Test Recall', 'Test F1-macro', 'Test ROC-AUC', 'Test PR-AUC',
@@ -480,12 +480,15 @@ def add_reference(doc, before, italic, after):
     return p
 
 
-def build_report(mode="full", two_column=False):
+def build_report(mode="full", two_column=False, name_tag=""):
     """mode: 'full' (quality-first) or 'safe' (<=2100 words body, hard cap,
     references/title/abstract/footnotes excluded). two_column: IEEE-style
-    two-column body layout, figures and tables break out to full width."""
+    two-column body layout, figures and tables break out to full width.
+    name_tag: optional extra filename stem (e.g. '_human') so a new copy
+    can be written without overwriting an existing report/*.docx."""
     safe = (mode == "safe")
-    suffix = ('_safe' if safe else '') + ('_2col' if two_column else '')
+    tag = name_tag if name_tag.startswith("_") or name_tag == "" else f"_{name_tag}"
+    suffix = ('_safe' if safe else '') + tag + ('_2col' if two_column else '')
     OUT_PATH = f"report/25065219_report{suffix}.docx"
 
     doc = Document()
@@ -505,6 +508,14 @@ def build_report(mode="full", two_column=False):
     set_style_font(doc.styles['Heading 2'], 'Times New Roman', Pt(13), RGBColor(0, 0, 0))
     doc.styles['Heading 1'].font.bold = True
     doc.styles['Heading 2'].font.bold = True
+    # Justify body; force headings left (they inherit from Normal).
+    doc.styles['Normal'].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    doc.styles['Normal'].paragraph_format.space_after = Pt(8)
+    for _h in ('Heading 1', 'Heading 2', 'Heading 3'):
+        try:
+            doc.styles[_h].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        except KeyError:
+            pass
 
     comparison_rows = load_comparison_csv()
     winners = determine_winners(comparison_rows)
@@ -551,9 +562,8 @@ def build_report(mode="full", two_column=False):
         "[RESULT: run all notebooks so the winning model can be stated correctly here.]"
     )
     abs_text = doc.add_paragraph(
-        "The UK's net-zero-by-2050 target means public money for retrofit has to be aimed, not "
-        "sprayed evenly across the housing stock. Most machine learning work on Energy Performance "
-        "Certificate (EPC)"
+        "The UK's net-zero-by-2050 target means public retrofit spend has to be prioritised. "
+        "Most machine learning work on Energy Performance Certificate (EPC)"
     )
     if not two_column:
         fm.add(abs_text,
@@ -601,26 +611,12 @@ def build_report(mode="full", two_column=False):
     if safe:
         p_intro1.add_run(
             "The UK government is legally committed to net-zero greenhouse gas emissions by 2050. "
-            "In the certificates I examine, 43.1% of homes are rated D or below,"
-        )
-        fm.add(p_intro1,
-            "200,000-record training sample, 2020-2024 (Section 2)."
-        )
-        p_intro1.add_run(
-            " and retrofitting all of them at once is neither financially nor "
-            "logistically realistic [1]. So the question that matters is which homes return the "
-            "most energy saved per pound of public money. Existing EPC machine learning mostly "
-            "predicts the current rating label instead [2, 3]."
-        )
-        fm.add(p_intro1,
-            "Seyedzadeh et al. [2] review current-rating prediction work directly; Pasichnyi, "
-            "Wallin and Kordas [3] build city-scale archetypes rather than property-level "
-            "decisions. Neither targets improvement headroom."
-        )
-        p_intro1.add_run(
-            " That does not help much here: a home already rated C has little room to improve "
-            "whatever its label. Headroom, the gap between a property's current and potential EPC "
-            "score, is the thing worth flagging."
+            "In the certificates I examine, 43.1% of homes are rated D or below "
+            "(200,000-record sample, 2020-2024), and retrofitting all of them at once is not "
+            "realistic [1]. The useful question is which homes return the most energy saved per "
+            "pound. Existing EPC ML mostly predicts the current rating label [2, 3], which does "
+            "not help: a C-rated home has little room to improve. The useful signal is headroom, "
+            "the gap between current and potential EPC score."
         )
     else:
         p_intro1.add_run(
@@ -686,10 +682,10 @@ def build_report(mode="full", two_column=False):
     )
     doc.add_paragraph(
         "where r is current EPC rating, and e_cur and e_pot are current and potential efficiency "
-        "score. That gives 21.7% positive in training and 10.8% in test (Fig. 1). The halving is "
-        "worth pausing on: it is not noise, newer certificates cover homes with less headroom "
-        "left, probably because more are new builds or recent refurbishments, and it is the "
-        "clearest single reason a random split would have flattered the results."
+        "score. That gives 21.7% positive in training and 10.8% in test (Fig. 1). The drop is "
+        "not noise: newer certificates cover homes with less headroom left, likely because more "
+        "are new builds or recent refurbishments. A random split would hide that shift and "
+        "inflate test scores."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/01_class_balance.png",
@@ -705,11 +701,11 @@ def build_report(mode="full", two_column=False):
     if safe:
         p_eda1 = doc.add_paragraph()
         p_eda1.add_run(
-            "Thirteen of the 41 raw fields carry missing values (Fig. 2): FLOOR_ENERGY_EFF is "
-            "missing in 89.3% of records and is dropped; a second cluster is missing in 14.7% "
-            "and is median/mode-imputed. A small fraction (~0.1%) carry physically impossible "
-            "negative values in energy, emissions, or cost fields and are removed as sentinel or "
-            "data-entry errors."
+            "Thirteen of the 41 raw fields carry missing values (Fig. 2). The floor-level energy "
+            "rating (FLOOR_ENERGY_EFF on the axis) is missing in 89.3% of records and is dropped "
+            "as too sparse to impute. A second cluster is missing in 14.7% and is filled with "
+            "the median (numbers) or most common value (categories). About 0.1% of records carry "
+            "impossible negative values in energy, emissions, or cost fields and are removed."
         )
         add_figure(doc,
             f"{FIGURES_DIR}/02_missing_values.png",
@@ -719,14 +715,11 @@ def build_report(mode="full", two_column=False):
             width=5.5, two_column=two_column, dense=True
         )
         p_eda2 = doc.add_paragraph()
-        p_eda2.add_run("A Pearson correlation check (Fig. 3) surfaces two near-collinear feature pairs,")
-        fm.add(p_eda2,
-            "CO2 emissions per floor area correlates with total energy consumption at r=0.98, and "
-            "habitable-room count with heated-room count at r=0.97 (training sample, n=200,000)."
-        )
         p_eda2.add_run(
-            " kept rather than dropped because split-based ensembles are not destabilised by "
-            "correlated inputs the way linear coefficients are (Section 4.1)."
+            "A Pearson correlation check (Fig. 3) surfaces two near-collinear pairs: CO2 per "
+            "floor area vs energy use (r=0.98), and habitable vs heated rooms (r=0.97). Both "
+            "are kept: correlated inputs destabilise linear coefficients, but tree models pick "
+            "one of the pair at each split (see Section 4)."
         )
         add_figure(doc,
             f"{FIGURES_DIR}/04_correlation_heatmap.png",
@@ -737,8 +730,7 @@ def build_report(mode="full", two_column=False):
         p_eda3 = doc.add_paragraph()
         p_eda3.add_run(
             "Construction age band shows a clear relationship with the target (Fig. 4): pre-1966 "
-            "properties carry the highest retrofit-potential rate, consistent with Section 5.3's "
-            "permutation importances."
+            "properties carry the highest retrofit-potential rate (see Section 5.3)."
         )
         add_figure(doc,
             f"{FIGURES_DIR}/06_retrofit_rate_by_age.png",
@@ -779,7 +771,7 @@ def build_report(mode="full", two_column=False):
             "training sample. Neither pair is dropped. Split-based ensembles choose one correlated "
             "feature over another without the estimate instability that collinearity causes for a "
             "linear model's coefficients, which is one concrete reason Logistic Regression is kept "
-            "as a baseline rather than promoted to the main model (Section 4.1)."
+            "as a baseline rather than promoted to the main model (see Section 4)."
         )
         add_figure(doc,
             f"{FIGURES_DIR}/04_correlation_heatmap.png",
@@ -816,55 +808,69 @@ def build_report(mode="full", two_column=False):
     )
     doc.add_paragraph(
         "Potential energy efficiency and potential rating are excluded from the feature set. "
-        "Including either would be target leakage: the efficiency gap is computed directly from "
-        "potential efficiency, so a model with access to it would trivially predict rather than "
-        "learn from physical characteristics. Current energy efficiency is retained since it is "
-        "fully observable and does not directly encode the potential score."
+        "Including either would let the model see the answer at prediction time (target leakage): "
+        "the efficiency gap is computed directly from potential efficiency, so a model given that "
+        "field would trivially recover the label instead of learning from physical characteristics. "
+        "Current energy efficiency is retained, since it is observable at assessment time and does "
+        "not directly encode the potential score."
     )
 
     # ------------------------------------------------------------------
     # 4. Algorithm Selection and Methodology
     # ------------------------------------------------------------------
     doc.add_heading("4. Algorithm Selection and Methodology", level=1)
-    p_impl = doc.add_paragraph()
     if safe:
-        p_impl.add_run(
-            "Models are implemented in Python via scikit-learn [4]. Logistic Regression, Random "
-            "Forest, and k-fold cross-validation were taught here; XGBoost and nested "
-            "cross-validation were not, and both are justified below rather than used unremarked."
+        doc.add_paragraph(
+            "The cleaned feature space mixes continuous scores with one-hot categories, "
+            "and keeps the two correlated pairs in Fig. 3."
         )
-        fm.add(p_impl,
-            "I chose to go beyond the taught syllabus, not to avoid it: every taught method still "
-            "appears (Logistic Regression as the interpretable baseline, Random Forest as the main "
-            "model, standard k-fold CV as the concept nested CV extends), and each self-directed "
-            "addition is justified against a specific limitation of the taught alternative, not "
-            "used because it sounded more advanced."
+        doc.add_paragraph(
+            "Logistic Regression is the baseline: interpretable, calibrated, and a bar "
+            "the others must beat (discriminative models typically need fewer examples "
+            "than generative ones [6]). It stays a baseline because correlated inputs "
+            "inflate linear coefficient variance. Random Forest is the main model: "
+            "averaging many trees on random data and feature subsamples (bagging) cuts "
+            "variance without adding bias [7] and copes with correlated inputs. A "
+            "standalone Decision Tree is skipped because it overfits [8]. Importance "
+            "uses permutation (score drop when one column is shuffled), not impurity "
+            "scores that bias toward high-cardinality features [9]."
+        )
+        doc.add_paragraph(
+            "XGBoost is the second tree model, checking whether the Random Forest result "
+            "is bagging-specific or shared by boosting. Boosting grows trees in sequence "
+            "to correct residual error, trading some variance reduction for lower bias "
+            "[5]. Minority-class weighting handles imbalance. I expected XGBoost to win; "
+            "Section 6 covers why it did not."
+        )
+        doc.add_paragraph(
+            "SVM and kNN are reference points. SVM tests a max-margin linear boundary "
+            "against Logistic Regression, with raw scores turned into probabilities via "
+            "a fitted sigmoid (Platt calibration) [10]; Table 1 has the metrics. kNN was "
+            "never fitted: past roughly 10-15 dimensions nearest and farthest neighbours "
+            "converge [11], and at 51 dimensions here that would not be a fair comparison "
+            "(heuristic only; Beyer assumes continuous i.i.d. features)."
+        )
+        doc.add_paragraph(
+            "All models weight classes inversely to frequency. I report F1-macro and "
+            "ROC-AUC as the main scores. Accuracy is not primary: majority guessing "
+            "scores 78.3% for free. Hyperparameters use nested cross-validation "
+            "(outer 5-fold stratified for generalisation, inner 3-fold for tuning) so "
+            "the same folds never both pick settings and report the score [12]. Final "
+            "numbers use the 2025-2026 time holdout. Implementation is Python with "
+            "scikit-learn [4] and XGBoost [5]."
         )
     else:
+        p_impl = doc.add_paragraph()
         p_impl.add_run(
             "I implement everything in Python with scikit-learn [4], plus XGBoost's own library "
-            "for the gradient-boosting model in 4.3 [5]."
+            "for the gradient-boosting model [5]."
         )
-    doc.add_heading("4.1 Logistic Regression", level=2)
-    p_lr = doc.add_paragraph()
-    if safe:
-        p_lr.add_run(
-            "Logistic Regression serves as the baseline. It is interpretable via its "
-            "coefficients, provides well-calibrated probabilities, and sets a minimum "
-            "performance bar the other three models must exceed."
+        doc.add_paragraph(
+            "After the cleaning above, the kept features have no remaining missing values "
+            "and a clear class imbalance. Model choice follows from that feature space "
+            "rather than from trying every algorithm available."
         )
-        fm.add(p_lr,
-            "Ng and Jordan [6] show that discriminative classifiers reach their asymptotic error "
-            "with fewer training examples than generative alternatives such as Naive Bayes, "
-            "which is why LR rather than NB is the baseline here."
-        )
-        p_lr.add_run(" The near-collinear pairs found in Section 2.1 are a further reason.")
-        fm.add(p_lr,
-            "They would inflate LR's coefficient variance without necessarily hurting its "
-            "predictions, a problem split-based ensembles do not share."
-        )
-    else:
-        p_lr.add_run(
+        doc.add_paragraph(
             "Logistic Regression serves as the baseline. Ng and Jordan [6] showed that "
             "discriminative classifiers reach their asymptotic error with fewer training examples "
             "than generative models (e.g. Naive Bayes), justifying LR over NB on a dataset of "
@@ -875,31 +881,7 @@ def build_report(mode="full", two_column=False):
             "variance without necessarily hurting its predictions, a problem split-based ensembles "
             "do not share."
         )
-    doc.add_heading("4.2 Random Forest", level=2)
-    p_rf = doc.add_paragraph()
-    if safe:
-        p_rf.add_run(
-            "Random Forest is my main model. Bagging many decorrelated trees over random feature "
-            "subsets cuts variance without adding bias [7], which is exactly what a single "
-            "Decision Tree lacks, so I reject a standalone Decision Tree outright."
-        )
-        fm.add(p_rf,
-            "Unpruned trees overfit badly, and even pruned ones still lose to the ensemble on "
-            "both bias-variance tradeoff and generalisation [8]."
-        )
-        p_rf.add_run(
-            " For feature importance I use permutation importance rather than the default "
-            "impurity-based score (Mean Decrease in Impurity, MDI), which is unreliable once "
-            "features mix cardinality the way this set does, one-hot categoricals next to "
-            "continuous numerics."
-        )
-        fm.add(p_rf,
-            "MDI biases toward high-cardinality and continuous features regardless of whether "
-            "they actually predict the target better, an artefact of how the impurity-reduction "
-            "score is computed, not a real signal [9]."
-        )
-    else:
-        p_rf.add_run(
+        doc.add_paragraph(
             "Random Forest is my main model. Bagging many decorrelated trees over random feature "
             "subsets cuts variance without adding bias [7], which is exactly what a single decision "
             "tree lacks. I reject a standalone Decision Tree outright: unpruned trees overfit badly, "
@@ -909,59 +891,15 @@ def build_report(mode="full", two_column=False):
             "unreliable across features of mixed cardinality [9], and my feature set mixes one-hot "
             "categoricals with continuous numerics."
         )
-    doc.add_heading("4.3 XGBoost", level=2)
-    p_xgb = doc.add_paragraph()
-    if safe:
-        p_xgb.add_run(
-            "XGBoost was not covered on this module. I add it because boosting is structurally "
-            "different from bagging: rather than averaging many independent trees, it builds "
-            "trees sequentially, each one correcting the previous ensemble's residual error, "
-            "trading some of bagging's variance reduction for lower bias. That difference is "
-            "the actual test here, whether 4.2's result is a property of tree ensembles "
-            "generally, or specific to bagging."
-        )
-        fm.add(p_xgb,
-            "I read Chen and Guestrin [5] independently to justify using it here, since the "
-            "module itself did not cover gradient boosting. It extends gradient boosting with "
-            "second-order Taylor approximations of the loss, column subsampling, and L1/L2 "
-            "regularisation, and is one of the strongest published performers on tabular "
-            "benchmarks [5]."
-        )
-        p_xgb.add_run(
-            " I expected it to beat Random Forest outright; Section 6 covers why it didn't. "
-            "Class imbalance is handled via scale_pos_weight, which weights the positive class "
-            "inversely to its frequency."
-        )
-    else:
-        p_xgb.add_run(
+        doc.add_paragraph(
             "XGBoost is my comparison against Random Forest for tree-based ensembles. It extends "
             "gradient boosting with second-order Taylor approximations of the loss, column "
             "subsampling, and L1/L2 regularisation, and is consistently one of the strongest "
-            "published performers on tabular benchmarks [5]. I expected it to beat Random Forest outright; Section 6 covers why it "
-            "didn't. Here, scale_pos_weight handles the class imbalance by weighting the positive "
-            "class inversely to its frequency."
+            "published performers on tabular benchmarks [5]. I expected it to beat Random Forest "
+            "outright; Section 6 covers why it didn't. Here, scale_pos_weight handles the class "
+            "imbalance by weighting the positive class inversely to its frequency."
         )
-    doc.add_heading("4.4 Reference Models: SVM and kNN", level=2)
-    p_svm = doc.add_paragraph()
-    if safe:
-        p_svm.add_run(
-            "SVM and kNN sit here as reference points, not primary candidates. SVM tests whether "
-            "a maximum-margin linear boundary does any better than Logistic Regression's own "
-            "linear boundary once both are compared on equal footing (SVM's probabilities are "
-            "Platt-calibrated for this reason); Table 1 reports its full metrics. kNN was never "
-            "fitted."
-        )
-        fm.add(p_svm,
-            "LinearSVC has no native probability output, hence CalibratedClassifierCV (Platt "
-            "scaling) to get scores for ROC-AUC [10]. Past roughly 10-15 dimensions, the distance "
-            "to the nearest neighbour converges toward the distance to the farthest one [11]; at "
-            "51 dimensions here, kNN would not have been a fair comparison, not a broken one. "
-            "Beyer et al.'s result [11] is derived for continuous i.i.d. features, and this "
-            "51-dimensional space is mostly one-hot categoricals plus a handful of continuous "
-            "fields, not an exact match, so this is a heuristic argument, not a strict bound."
-        )
-    else:
-        p_svm.add_run(
+        doc.add_paragraph(
             "SVM (linear kernel, Platt-calibrated via CalibratedClassifierCV since LinearSVC has "
             "no native probability output [10]) and kNN sit in this report as reference points, "
             "not primary candidates alongside Random Forest and XGBoost. SVM specifically tests "
@@ -977,46 +915,15 @@ def build_report(mode="full", two_column=False):
             "of continuous fields, not an exact match for that assumption. It is a heuristic "
             "argument for excluding kNN, not a strict mathematical guarantee that it would fail here."
         )
-    doc.add_heading("4.5 Class Imbalance and Evaluation Metrics", level=2)
-    p_metrics = doc.add_paragraph()
-    p_metrics.add_run(
-        "Every model uses class_weight='balanced' (or its equivalent) to correct for the 78:22 "
-        "imbalance in training data. I report F1-macro and ROC-AUC throughout."
-    )
-    fm.add(p_metrics,
-        "ROC-AUC is the normalised Mann-Whitney U statistic: the probability that a randomly "
-        "chosen positive scores above a randomly chosen negative, which is also why it stays "
-        "roughly comparable across datasets with different prevalence, unlike PR-AUC, whose own "
-        "baseline shifts with the positive rate. F1-macro rather than F1-weighted specifically: "
-        "weighted support-scales each class's contribution by its frequency, reintroducing the "
-        "same majority-class bias this report argues accuracy already has, macro treats both "
-        "classes as equally worth getting right regardless of how common either one is."
-    )
-    p_metrics.add_run(
-        " Accuracy is not a primary metric here: a model that just predicts the majority class "
-        "every time would score 78.3% on training data without learning anything."
-    )
-    doc.add_heading("4.6 Nested Cross-Validation and Temporal Test Split", level=2)
-    p_ncv = doc.add_paragraph()
-    p_ncv.add_run(
-        "Standard k-fold cross-validation was taught here; nested cross-validation extends it "
-        "with an inner loop, used because a single k-fold split has a specific flaw once it also "
-        "chooses hyperparameters."
-    )
-    fm.add(p_ncv,
-        "If the same k-fold split both selects hyperparameters (by picking whichever setting "
-        "scores best on the held-out folds) and then reports that score as the model's expected "
-        "performance, the reported score is optimistically biased: it has effectively been chosen "
-        "for scoring well on those exact folds [12]. Nested CV separates the two jobs into an "
-        "outer loop (scores generalisation) and an inner loop (selects hyperparameters), so the "
-        "score reported was never used to pick the setting being scored."
-    )
-    p_ncv.add_run(
-        " A 5-fold stratified outer loop estimates generalisation performance; a 3-fold stratified "
-        "inner loop selects hyperparameters. The final test evaluation then uses the temporally "
-        "held-out 2025-2026 sample, never seen during training or tuning, a stricter check than "
-        "nested CV alone provides."
-    )
+        doc.add_paragraph(
+            "Every model uses class_weight='balanced' for the 78:22 imbalance. I report F1-macro "
+            "(both classes equal weight) and ROC-AUC (P(positive ranks above negative)). Accuracy "
+            "is not primary: majority-class guessing scores 78.3% on training data for free. "
+            "Nested CV uses a 5-fold stratified outer loop (generalisation) and a 3-fold "
+            "stratified inner loop (tuning). If the same folds pick hyperparameters and report "
+            "the score, that score is optimistically biased [12]. Final evaluation uses the "
+            "2025-2026 temporal holdout, never seen in training or tuning."
+        )
 
     # ------------------------------------------------------------------
     # 5. Results
@@ -1025,13 +932,22 @@ def build_report(mode="full", two_column=False):
     doc.add_heading("5.1 Model Comparison", level=2)
     doc.add_paragraph(
         "Table 1 presents test-set performance across five metrics: accuracy and recall, then "
-        "F1, ROC-AUC, and PR-AUC, bolded on the winning row. Accuracy is not bolded, Section 4.5 "
+        "F1, ROC-AUC, and PR-AUC, bolded on the winning row. Accuracy is not bolded: Section 4 "
         "argues it is not the metric doing the real work here. Nested cross-validation scores are "
         "discussed with the specific figures in Section 6."
     )
 
-    cap1 = doc.add_paragraph("Table 1. Model comparison: test-set performance across five metrics.")
+    # keep this short enough to fit one line at column width. A table caption sits
+    # above its table, and the table is a floating image in two-column mode, so a
+    # caption that wraps gets its second line pushed past the float and stranded
+    # in the wrong column. keep_together does not prevent it, the float wrap runs
+    # first. Figure captions do not have this problem, they sit below the image.
+    cap1 = doc.add_paragraph("Table 1. Model comparison, test set.")
     cap1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    cap1.paragraph_format.space_before = Pt(10)
+    cap1.paragraph_format.space_after = Pt(4)
+    cap1.paragraph_format.keep_with_next = True
+    cap1.paragraph_format.keep_together = True
     cap1.runs[0].italic = True
     cap1.runs[0].font.size = Pt(10)
 
@@ -1075,15 +991,13 @@ def build_report(mode="full", two_column=False):
         )
     p_res = doc.add_paragraph()
     if safe:
-        p_res.add_run(result_sentence.rstrip())
-        fm.add(p_res,
-            "No-skill baseline: ROC-AUC 0.5, PR-AUC equal to the positive prevalence. Every model "
-            "here clears it comfortably."
-        )
         p_res.add_run(
-            " The CV-to-test drop shows up for all four and traces back to the temporal shift "
-            "from Section 2: test years hold fewer high-headroom homes, so the task is harder "
-            "there, matching deployment rather than a fault in the models."
+            result_sentence.rstrip()
+            + " Every model clears the no-skill baseline (a random classifier scores "
+            "ROC-AUC 0.5; PR-AUC equal to positive prevalence). The CV-to-test drop shows "
+            "up for all four and traces back to the temporal shift from Section 2: test "
+            "years hold fewer high-headroom homes, so the task is harder there, matching "
+            "deployment rather than a fault in the models."
         )
     else:
         p_res.add_run(
@@ -1100,17 +1014,13 @@ def build_report(mode="full", two_column=False):
     if safe:
         p_pr.add_run(
             "Table 1's accuracy and recall need one more figure to read correctly: Random "
-            "Forest's precision is 58.7%,"
-        )
-        fm.add(p_pr,
-            "Real numbers from rf_test_preds.npy against y_test.npy, not estimated."
-        )
-        p_pr.add_run(
-            " well below its recall, because guessing the majority class scores 89.2% free at "
-            "this test set's 10.8% positive rate, so recall is the number doing the real work, "
-            "and F1-macro balances both rather than reporting either alone. All four curves sit "
-            "close together (Fig. 5): the PR curves only really separate as recall approaches "
-            "1.0, where Random Forest holds precision longest."
+            "Forest's precision is 58.7%, well below its recall, because guessing the majority "
+            "class scores 89.2% free at this test set's 10.8% positive rate. Recall is the number "
+            "doing the real work, and F1-macro balances both. Fig. 5 shows which errors it makes: "
+            "733 missed high-potential homes against 3,281 false flags, the asymmetry Section 8 "
+            "argues is the right one to accept. All four curves sit close together "
+            "(Fig. 6): the PR curves only really separate as recall approaches 1.0, where Random "
+            "Forest holds precision longest."
         )
     else:
         p_pr.add_run(
@@ -1120,15 +1030,27 @@ def build_report(mode="full", two_column=False):
             "10.8% positive rate, so recall is the number actually doing the work, not accuracy. "
             "F1-macro (Table 1) is reported as the headline metric instead of precision or recall "
             "alone because it balances both across both classes, and does not privilege whichever "
-            "one a specific threshold happens to favour. Visually, all four models' curves sit "
-            "close together (Fig. 5), the ROC curves stay near the top-left corner across most "
+            "one a specific threshold happens to favour. Fig. 5 shows which errors the model "
+            "actually makes: 733 missed high-potential homes against 3,281 false flags, the "
+            "asymmetry Section 8 argues is the right one to accept for this application. "
+            "Visually, all four models' curves sit "
+            "close together (Fig. 6), the ROC curves stay near the top-left corner across most "
             "thresholds, and the PR curves only really pull apart as recall approaches 1.0, where "
             "Random Forest holds its precision longest."
         )
 
     add_figure(doc,
+        f"{FIGURES_DIR}/rf_confusion_matrix.png",
+        "Fig. 5. Random Forest confusion matrix, test set. The 733 false negatives are the "
+        "error type that matters most here (Section 8).",
+        # square figure, so a full 5.5in width would also make it 5.5in tall and
+        # eat most of a page for a 2x2 grid of numbers
+        width=3.4, two_column=two_column, dense=False
+    )
+
+    add_figure(doc,
         f"{FIGURES_DIR}/all_models_roc_pr.png",
-        "Fig. 5. ROC curves (left) and precision-recall curves (right), all four models, test set.",
+        "Fig. 6. ROC curves (left) and precision-recall curves (right), all four models, test set.",
         two_column=two_column, dense=True
     )
 
@@ -1136,34 +1058,13 @@ def build_report(mode="full", two_column=False):
     if safe:
         p_mcn = doc.add_paragraph()
         p_mcn.add_run(
-            "McNemar's test was applied to four model pairs to assess whether error "
-            "distributions are statistically distinct [13], the right choice for a single "
-            "train/test split."
-        )
-        fm.add(p_mcn,
-            "It has acceptably low Type I error here, as opposed to designs with repeated "
-            "resampling, where a 5x2cv test is recommended instead [14]; the Diebold-Mariano test "
-            "is for regression and does not apply. Two alternatives were considered and rejected: "
-            "a paired t-test on the nested CV fold scores would violate the independence "
-            "assumption, since outer folds share overlapping training data through the inner loop; "
-            "a bootstrap confidence interval on the accuracy difference is a reasonable alternative "
-            "but does not test the specific hypothesis McNemar does, that the two classifiers' "
-            "errors are exchangeable, so both are non-fits, not just McNemar being picked by default."
-        )
-        p_mcn.add_run(
-            " Every pair differs significantly (p < 0.0001), including SVM vs Random Forest, "
-            "the pair with the smallest McNemar test statistic"
-        )
-        fm.add(p_mcn,
-            "Smallest test statistic, not the closest pair on ROC-AUC: that is Random Forest vs "
-            "XGBoost (Table 1), a different comparison. McNemar's statistic measures how "
-            "one-sided the disagreements are (each model right where the other is wrong), not "
-            "how large the accuracy gap is."
-        )
-        p_mcn.add_run(
-            ". With 50,000 test rows this has power to flag small differences: the models make "
-            "different mistakes on different properties, not that any single decision would "
-            "change. Table 1's ROC-AUC and F1-macro gaps guide practical importance better."
+            "McNemar's test on four model pairs checks whether their error patterns differ "
+            "[13]. It fits a single train/test split; a paired t-test on nested-CV folds "
+            "would double-count overlapping folds and look over-confident [14]. Every pair "
+            "differs (p < 0.0001). With 50,000 test rows, small differences register as "
+            "significant: the models disagree on which properties they get wrong, not that "
+            "the gap is large. Table 1's ROC-AUC and F1 gaps are the better guide to "
+            "practical size."
         )
     else:
         doc.add_paragraph(
@@ -1190,7 +1091,7 @@ def build_report(mode="full", two_column=False):
 
     add_figure(doc,
         f"{FIGURES_DIR}/rf_permutation_importances.png",
-        "Fig. 6. Random Forest permutation importances, top 20 features, test set. Error bars show "
+        "Fig. 7. Random Forest permutation importances, top 20 features, test set. Error bars show "
         "variation across repeated shuffles.",
         two_column=two_column, dense=True
     )
@@ -1199,24 +1100,17 @@ def build_report(mode="full", two_column=False):
     p_fi = doc.add_paragraph()
     if safe:
         p_fi.add_run(
-            "Random Forest permutation importances (Fig. 6) rank current energy efficiency score "
+            "Random Forest permutation importances (Fig. 7) rank current energy efficiency score "
             "as the strongest predictor by a wide margin, followed by CO2 emissions per floor "
             "area and heating cost. Construction age band also ranks highly: pre-1966 stock "
-            "likely carries more headroom (Fig. 4)."
-        )
-        fm.add(p_fi,
-            "This report does not include a separate age-stratified breakdown to verify that "
-            "mechanism directly, so this is a proposed explanation, not a demonstrated one."
-        )
-        p_fi.add_run(
-            " Wall type (cavity vs solid) also contributes: EPC's methodology rates uninsulated "
-            "solid-wall construction as poor by design, so solid-wall properties systematically "
-            "carry more headroom, a property of how EPC scores are assessed, not an artefact of "
-            "the model."
+            "likely carries more headroom (Fig. 4); that link is not age-stratified here, so it "
+            "stays a proposed explanation. Wall type (cavity vs solid) also contributes: EPC "
+            "rates uninsulated solid walls as poor by design, so solid-wall homes systematically "
+            "carry more headroom."
         )
     else:
         p_fi.add_run(
-            "Feature importance analysis from Random Forest permutation importances (Fig. 6) "
+            "Feature importance analysis from Random Forest permutation importances (Fig. 7) "
             "shows that current energy efficiency score is the single strongest predictor, followed by CO2 "
             "emissions per floor area and heating cost. Construction age band also ranks highly: "
             "older properties, particularly pre-1966 stock built before modern insulation standards, "
@@ -1230,7 +1124,7 @@ def build_report(mode="full", two_column=False):
             "artefact of the model."
         )
 
-    doc.add_heading("5.4 Ablation: Naive Structural Baseline", level=2)
+    doc.add_heading("5.4 Ablation: Current-Score-Only Baseline", level=2)
     naive = load_naive_baseline()
     best_row = None
     if winners and comparison_rows:
@@ -1246,21 +1140,17 @@ def build_report(mode="full", two_column=False):
         if safe:
             p_naive = doc.add_paragraph()
             p_naive.add_run(
-                "A naive Logistic Regression restricted to CURRENT_ENERGY_EFFICIENCY and "
-                "CURRENT_ENERGY_RATING, fitted under the same protocol, tests how much of the "
-                "result these two fields explain alone."
-            )
-            fm.add(p_naive,
-                "CURRENT_ENERGY_EFFICIENCY is retained as a feature even though a low current "
-                "score structurally leaves more numerical room for a large gap, since potential "
-                "efficiency is capped near 100."
-            )
-            p_naive.add_run(
-                f" It reaches a test ROC-AUC of {naive['test_roc_auc']:.4f}, only {auc_gap:.4f} "
-                f"below {winners['best_auc_model']}'s {best_auc:.4f}. On the class-imbalance-sensitive "
-                f"metrics the gap is larger: {f1_gap:.4f} F1-macro and {pr_gap:.4f} PR-AUC, showing "
-                "the structural and construction-age features contribute real value beyond the "
-                "current-to-potential arithmetic relationship."
+                "The simplest baseline is a Logistic Regression that only sees current "
+                "efficiency score and current EPC rating (A-G). If a low current score "
+                "mechanically leaves more room for a large gap, that alone might explain "
+                "most of the result. I fit that stripped-down model under the same nested "
+                "cross-validation as the others, and score it on the same 2025-2026 test "
+                f"set. It reaches a test ROC-AUC of {naive['test_roc_auc']:.4f}, only "
+                f"{auc_gap:.4f} below {winners['best_auc_model']}'s {best_auc:.4f}. On "
+                f"imbalance-sensitive metrics the gap is larger: {f1_gap:.4f} F1-macro and "
+                f"{pr_gap:.4f} PR-AUC. Current score does most of the ranking work, which "
+                "is why it dominates Section 5.3, but construction-age, wall-type, and "
+                "features still add separation beyond arithmetic."
             )
         else:
             doc.add_paragraph(
@@ -1294,14 +1184,14 @@ def build_report(mode="full", two_column=False):
         "Calibration checks whether a model's reported probability matches the true observed "
         "frequency of the positive class, distinct from ranking ability (ROC-AUC), and matters "
         "for policy use, where a threshold needs to be trustworthy, not just the ranking. All "
-        "four curves sit below the diagonal (Fig. 7): every model over-predicts risk, a property "
+        "four curves sit below the diagonal (Fig. 8): every model over-predicts risk, a property "
         "flagged at 70% is genuinely high-potential closer to 40-50% of the time. Logistic "
         "Regression is most over-confident; Random Forest and SVM track closest to each other "
         "and are the least mis-calibrated."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/calibration_curves.png",
-        "Fig. 7. Calibration curves (reliability diagrams), all four models, test set. The "
+        "Fig. 8. Calibration curves (reliability diagrams), all four models, test set. The "
         "diagonal marks perfect calibration; every model sits below it.",
         two_column=two_column, dense=False
     )
@@ -1326,11 +1216,9 @@ def build_report(mode="full", two_column=False):
         lead_sentence = "[RESULT: state which model leads once all notebooks have been run.]"
     if safe:
         doc.add_paragraph(
-            "For policy use, the choice between the two tree-based models turns on "
-            "interpretability, not the score gap between them (Table 1): Random Forest's "
-            "permutation importances are straightforward to communicate to policymakers, "
-            "while XGBoost's gain-based importances can be biased toward high-cardinality "
-            "features."
+            "Policy choice between the two tree models turns on interpretability more than the "
+            "Table 1 score gap: Random Forest permutation importances are easy to explain; "
+            "XGBoost gain scores skew toward high-cardinality features and are harder to defend."
         )
     else:
         doc.add_paragraph(
@@ -1344,27 +1232,27 @@ def build_report(mode="full", two_column=False):
         )
     if safe:
         doc.add_paragraph(
-            "This connects back to why Random Forest was the main model, not just the winner: "
-            "bagging trades training-set fit for lower variance [7], which held up on data "
-            "XGBoost's flexibility had never seen. I read the gap as consistent with that "
-            "mechanism, not proven, since nothing here isolates variance from the algorithms' "
-            "other differences."
-        )
-        doc.add_paragraph(
-            "The temporal shift (21.7% to 10.8% positive) matters for deployment: future stock "
-            "will have proportionally fewer high-retrofit candidates. Relative ranking still "
-            "holds, but a fixed threshold will lose recall over time, so annual re-calibration "
-            "against Fig. 7 should be recall-oriented, not accuracy-oriented."
+            "XGBoost led under nested cross-validation, 0.9873 ROC-AUC against Random Forest's "
+            "0.9858, then lost on the held-out years, 0.9694 against 0.9705. That fits why "
+            "Random Forest was the main model: bagging "
+            "trades training-set fit for lower variance [7], which held on data XGBoost's "
+            "flexibility had never seen. Consistent with the mechanism, not proven. The temporal "
+            "shift (21.7% to 10.8% positive) means future stock has fewer high-retrofit "
+            "candidates; ranking still holds, but recalibrate annually against Fig. 8 with a "
+            "recall bias."
         )
     else:
         doc.add_paragraph(
+            "XGBoost led under nested cross-validation, with a mean outer-fold ROC-AUC of 0.9873 "
+            "against Random Forest's 0.9858, and then lost on the held-out 2025-2026 years, "
+            "0.9694 against 0.9705. "
             "This connects back to why Random Forest was the main model in the first place, not "
             "just the eventual winner. Bagging trades a little training-set fit for lower "
             "variance [7], which is exactly what would let it hold up better on a test period "
             "XGBoost's extra flexibility had never seen. I read the CV-to-test gap as consistent "
             "with that mechanism, not proof of it: nothing in this report isolates variance from "
             "the other ways the two algorithms differ, so it stays an untested explanation, "
-            "argued from the same bias-variance logic that motivated the model choice in Section 4.2."
+            "argued from the same bias-variance logic that motivated the model choice in Section 4."
         )
         doc.add_paragraph(
             "The positive rate drops from 21.7% to 10.8% across the temporal split, and that "
@@ -1374,27 +1262,25 @@ def build_report(mode="full", two_column=False):
             "ranking of properties, and that still holds. What it does mean is that a fixed "
             "probability threshold loses recall over time, quietly, without the model itself "
             "changing. I would re-calibrate the threshold annually against the reliability "
-            "diagrams in Fig. 7, biased toward recall rather than accuracy, rather than trust a "
+            "diagrams in Fig. 8, biased toward recall rather than accuracy, rather than trust a "
             "threshold picked once at launch."
         )
     doc.add_paragraph("There are six main limitations.")
     if safe:
         limitation_items = [
             "Data quality. The true EPC error rate is estimated at 36-62% once assessor "
-            "disagreement is accounted for [15], which affects WALL_TYPE, engineered from the "
-            "same unreliable free-text fields.",
+            "disagreement is accounted for [15], which affects the wall-type feature, "
+            "engineered from the same unreliable free-text description fields.",
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
             "Sample size. This uses 200,000 of 7.25 million eligible records; full-data training "
             "may improve minority-class recall.",
             "Spatial features. Regional and deprivation variables enter as nominal categories, not "
             "spatial models.",
-            "Single temporal split, not a rolling backtest. Evaluation uses one static "
-            "2020-2024/2025-2026 split, not walk-forward retraining across several periods, so "
-            "it cannot show whether performance is stable or drifting over time.",
-            "Fairness across subgroups. Performance is reported in aggregate; whether accuracy "
-            "holds evenly across property type, tenure, or region was not separately checked, a "
-            "real gap for a policy-facing tool.",
+            "Single temporal split. One 2020-2024/2025-2026 holdout, not walk-forward "
+            "retraining, so drift over time is not measured.",
+            "Fairness across subgroups. Aggregate metrics only; property type, tenure, and "
+            "region were not checked separately.",
         ]
     else:
         limitation_items = [
@@ -1449,26 +1335,15 @@ def build_report(mode="full", two_column=False):
             p_bristol.add_run(
                 f"To check this is more than a benchmark exercise, I ran the trained Random "
                 f"Forest on every Bristol, City of certificate in the held-out 2025-2026 test "
-                f"set: {n:,} properties never seen during training or tuning."
+                f"set: {n:,} properties never seen during training or tuning (matched by UPRN "
+                f"to the register's local-authority field). Accuracy is {acc:.1%}, not "
+                f"meaningful alone: guessing \"not high potential\" always scores {maj_base:.1%} "
+                f"free, since only {pos_rate:.1%} of Bristol properties are genuinely "
+                f"high-potential. Recall shows what accuracy hides: {recall:.1%} of true "
+                f"positives flagged (precision {precision:.1%}, F1 {f1:.2f}) against 0% for that "
+                f"baseline. Bristol's {pos_rate:.1%} positive rate sits {abs(gap_pts):.1f} points "
+                f"below the rest ({rest_rate:.1%}), significant (z-test, p={p_value:.3f})."
             )
-            fm.add(p_bristol,
-                "Matched by UPRN against the open EPC register's own local-authority field, not "
-                "a synthetic or hand-picked set."
-            )
-            p_bristol.add_run(
-                f" Accuracy is {acc:.1%}, not meaningful alone: guessing \"not high potential\" "
-                f"always scores {maj_base:.1%} free, since only {pos_rate:.1%} of Bristol "
-                f"properties are genuinely high-potential. Recall shows what accuracy hides: "
-                f"{recall:.1%} of true positives flagged (precision {precision:.1%}, F1 "
-                f"{f1:.2f}) against 0% for that baseline. Bristol's {pos_rate:.1%} positive rate "
-                f"sits {abs(gap_pts):.1f} points below the rest ({rest_rate:.1%}), significant "
-                f"(z-test, p={p_value:.3f})"
-            )
-            fm.add(p_bristol,
-                "Likely a real feature of Bristol's housing stock rather than a model artefact, "
-                "given the model was never trained or tuned on Bristol-specific data."
-            )
-            p_bristol.add_run(".")
         else:
             p_bristol.add_run(
                 f"A benchmark result is not the same as a working tool, so I ran the trained "
@@ -1499,29 +1374,28 @@ def build_report(mode="full", two_column=False):
         ):
             p_map = doc.add_paragraph()
             p_map.add_run(
-                "Predicted rate varies by district (Fig. 8), from BS1 (3.5%, lowest) to BS15 "
+                "Predicted rate varies by district (Fig. 9), from BS1 (3.5%, lowest) to BS15 "
                 "(21.9%, highest); marker position is an approximate centroid, not a real "
                 "boundary."
             )
             add_figure(doc,
                 f"{FIGURES_DIR}/07_bristol_district_map.png",
-                "Fig. 8. Predicted retrofit-potential rate by Bristol postcode district, test "
+                "Fig. 9. Predicted retrofit-potential rate by Bristol postcode district, test "
                 "set; marker area scales with the number of test-set properties in that district.",
                 two_column=two_column, dense=True
             )
         cap_bristol = doc.add_paragraph()
         cap_bristol.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cap_bristol.paragraph_format.space_before = Pt(10)
+        cap_bristol.paragraph_format.space_after = Pt(4)
+        cap_bristol.paragraph_format.keep_with_next = True
+        cap_bristol.paragraph_format.keep_together = True
         cap_run = cap_bristol.add_run(
             "Table 2. Eight Bristol test-set properties: model output vs. actual label."
         )
         cap_run.italic = True
         cap_run.font.size = Pt(10)
         cap_run.font.name = 'Times New Roman'
-        fm.add(cap_bristol,
-            f"Stratified sample from the {n:,} Bristol test-set properties: 3 correctly "
-            "predicted positives, 3 correctly predicted negatives, and 2 genuine model errors, "
-            "each group sampled at random with a fixed seed (42), not hand-picked."
-        )
         table2_img = f"{FIGURES_DIR}/table2_bristol.png"
         if two_column and os.path.exists(table2_img):
             # Same real-table-cannot-float-in-Word limitation as Table 1;
@@ -1538,15 +1412,8 @@ def build_report(mode="full", two_column=False):
                 "This is what the tool is for: a buyer, landlord, or council screens a shortlist "
                 "by postcode for a ranked headroom probability. Not a valuation tool: the two "
                 "shaded rows are genuine model errors, and neither purchase price nor retrofit "
-                "cost is estimated here,"
-            )
-            fm.add(p_use,
-                "A real investment decision still needs a separate estimate of retrofit cost "
-                "against likely value uplift; Land Registry Price Paid Data is the natural next "
-                "input, not EPC data."
-            )
-            p_use.add_run(
-                " so the output is a prioritisation signal, not a buy or don't-buy answer."
+                "cost is estimated here, so the output is a prioritisation signal, not a buy or "
+                "don't-buy answer."
             )
         else:
             p_use.add_run(
@@ -1583,17 +1450,9 @@ def build_report(mode="full", two_column=False):
             "records are property-addressable, so linkage with other datasets could re-identify "
             "a dwelling; no such linkage is performed. A false negative deprioritises a property "
             "that genuinely needs intervention; a false positive only wastes assessor time. That "
-            "is why Section 6 recommends recall-oriented calibration: a person decides which "
-            "flagged properties get a visit."
-        )
-        fm.add(p_eth,
-            "The model inherits whatever bias sits in the EPC assessments it is trained on, so "
-            "an assessor still checking each flagged property in person is a real safeguard here, "
-            "not a formality."
-        )
-        p_eth.add_run(
-            " The pipeline is public at https://github.com/KNHNF/epc-retrofit-potential-ml for "
-            "independent checking."
+            "is why Section 6 recommends recall-oriented calibration, with a person deciding "
+            "which flagged properties get a visit. The pipeline is public at "
+            "https://github.com/KNHNF/epc-retrofit-potential-ml for independent checking."
         )
     else:
         doc.add_paragraph(
@@ -1638,19 +1497,13 @@ def build_report(mode="full", two_column=False):
     if safe:
         p_conc = doc.add_paragraph()
         p_conc.add_run(
-            "This paper presented a pipeline identifying high-retrofit-potential UK properties "
-            f"from EPC open data, with {conclusion_lead} the strongest of the four models "
-            "compared. Applied to real, held-out Bristol properties (Section 7), it held its "
-            "recall on an unseen city, not just an unseen time period. Current efficiency, CO2 "
-            "intensity, construction age, and wall type drive the predictions, all physically "
-            "interpretable. These numbers come with real caveats"
-        )
-        fm.add(p_conc,
-            "EPC data-quality problems and a 200,000-record sample rather than the full 7.25 "
-            "million eligible records (Section 6) mean this is a credible estimate, not a final one."
-        )
-        p_conc.add_run(
-            ", set out in Section 6. Code and pipeline are public at "
+            f"{conclusion_lead} is the strongest of the four models for identifying "
+            "high-retrofit-potential UK properties from EPC open data. On held-out Bristol "
+            "properties (Section 7), recall held on an unseen city, not only an unseen time "
+            "period. Current efficiency, CO2 intensity, construction age, and wall type drive "
+            "the predictions, and all are physically interpretable. Caveats in Section 6 "
+            "(EPC data quality; 200,000 of 7.25 million eligible records) mean this is a "
+            "credible estimate, not a final one. Code and pipeline are public at "
             "https://github.com/KNHNF/epc-retrofit-potential-ml."
         )
     else:
@@ -1831,12 +1684,24 @@ def build_report(mode="full", two_column=False):
 
 
 if __name__ == "__main__":
+    # Usage:
+    #   python src/generate_report.py [full|safe|both|2col|human] [name_tag]
+    # Examples:
+    #   python src/generate_report.py human
+    #       -> report/25065219_report_safe_human.docx
+    #       -> report/25065219_report_safe_human_2col.docx
+    #   python src/generate_report.py safe human
+    #   python src/generate_report.py 2col human
     arg = sys.argv[1] if len(sys.argv) > 1 else "both"
-    if arg == "both":
-        build_report("full")
-        build_report("safe")
-        build_report("safe", two_column=True)
+    name_tag = sys.argv[2] if len(sys.argv) > 2 else ""
+    if arg == "human":
+        build_report("safe", name_tag="human")
+        build_report("safe", two_column=True, name_tag="human")
+    elif arg == "both":
+        build_report("full", name_tag=name_tag)
+        build_report("safe", name_tag=name_tag)
+        build_report("safe", two_column=True, name_tag=name_tag)
     elif arg == "2col":
-        build_report("safe", two_column=True)
+        build_report("safe", two_column=True, name_tag=name_tag)
     else:
-        build_report(arg)
+        build_report(arg, name_tag=name_tag)
