@@ -41,3 +41,5 @@ CLAUDE.md
 REPORT_POLISH_CHECKLIST.md
 *.tmp
 ~$*
+report/VIVA_MUST_KNOW.md
+.~lock.*
