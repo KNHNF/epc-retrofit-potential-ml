@@ -1149,8 +1149,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"{auc_gap:.4f} below {winners['best_auc_model']}'s {best_auc:.4f}. On "
                 f"imbalance-sensitive metrics the gap is larger: {f1_gap:.4f} F1-macro and "
                 f"{pr_gap:.4f} PR-AUC. Current score does most of the ranking work, which "
-                "is why it dominates Section 5.3, but construction-age, wall-type, and "
-                "features still add separation beyond arithmetic."
+                "is why it dominates Section 5.3, but construction-age and wall-type "
+                "features still add separation beyond that arithmetic."
             )
         else:
             doc.add_paragraph(
@@ -1652,7 +1652,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_paragraph()
     wc_para = doc.add_paragraph()
     wc_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    limit_note = "2,100-word hard cap" if safe else "quality-first, not word-capped"
+    # state the brief's actual limit (2,000 +10%), not the tighter internal target.
+    # the footer used to say "2,100-word hard cap" while the count sat just over it,
+    # which reads as a self-declared breach even though 2,107 is well inside the brief
+    limit_note = "brief: 2,000 words +10%" if safe else "quality-first, not word-capped"
     wc_run = wc_para.add_run(
         f"Word count: {word_count} (Introduction to Conclusion, excluding title, "
         f"abstract, references, and footnotes, per standard academic convention). "
