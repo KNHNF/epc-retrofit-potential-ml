@@ -53,6 +53,6 @@ else:
             print(f"deleted: {f.name}")
             deleted += 1
         except Exception as e:
-            print(f"FAILED: {f.name} — {e}")
+            print(f"FAILED: {f.name}, {e}")
             failed += 1
     print(f"\nDone. Deleted {deleted} files. Failed: {failed}.")

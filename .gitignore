@@ -34,12 +34,6 @@ report/model/*.onnx
 # it back once the model is hosted and the URL is wired in for real.
 web/
 
-# Local-only session log, never committed or pushed
-HANDOFF.md
-EPC_PLAN.md
-CLAUDE.md
-REPORT_POLISH_CHECKLIST.md
 *.tmp
 ~$*
-report/VIVA_MUST_KNOW.md
 .~lock.*

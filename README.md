@@ -8,8 +8,8 @@ Author: Karan Homayounfar (25065219). Coursework deadline: 6 August 2026.
 
 ## Problem
 
-The UK has a legally binding net-zero target for 2050. Around 29 million residential buildings are
-rated D or below on the EPC energy efficiency scale, and retrofitting all of them at once isn't
+The UK has a legally binding net-zero target for 2050. In the certificates used here, 43% of homes
+are rated D or below on the EPC energy efficiency scale, and retrofitting all of them at once isn't
 financially or logistically possible. The question that matters for policy is which properties will
 deliver the most energy savings per pound of public investment.
 
@@ -84,12 +84,19 @@ Then run the notebooks in order:
 5. `04b_XGBoost.ipynb`, XGBoost comparison
 6. `05_Comparison_Evaluation.ipynb`, SVM, four-way comparison, McNemar tests, calibration
 
-Then generate the report:
+Then build the figures and the report:
 
 ```
-python src/generate_report.py        # builds report/25065219_report.docx from saved metrics
+python src/bristol_case_study.py     # per-district Bristol predictions
+python src/make_bristol_map.py       # Fig. 9, district map
+python src/make_table_images.py      # table images for the two-column build
+python src/generate_report.py human  # builds the .docx from the saved metrics
 pytest tests/
 ```
+
+The report generator does no modelling. It reads `data/processed/model_comparison.csv` and the
+saved `.pkl` metrics and writes the numbers into the prose, so the document cannot state a figure
+that disagrees with the run that produced it. Change the data, rebuild, every number updates.
 
 Note (Windows): scikit-learn's `n_jobs=-1` can crash with a joblib `PicklingError` on this platform
 when nested inside another parallel call, or when there isn't enough free disk space for its temp
@@ -108,12 +115,17 @@ memmap files. `04_Random_Forest.ipynb` runs single-threaded (`n_jobs=1`) for thi
 │   ├── data_loader.py
 │   ├── preprocessing.py
 │   ├── evaluation.py
-│   └── generate_report.py     Builds report/25065219_report.docx from saved metrics
+│   ├── bristol_case_study.py  Per-district Bristol predictions and z-test
+│   ├── make_bristol_map.py    Fig. 9, district map on an OpenStreetMap basemap
+│   ├── make_table_images.py   Tables as images, for the two-column build
+│   ├── two_column_layout.py   Floating figures, endnotes, IEEE-style columns
+│   ├── export_onnx.py         Model export
+│   └── generate_report.py     Builds the .docx from saved metrics
 ├── tests/
 ├── report/
 │   ├── figures/
-│   ├── REPORT_OVERVIEW.md     Section-by-section writing plan against the marking criteria
-│   └── 25065219_report.docx   Generated, not the final submission draft
+│   ├── REPORT_OVERVIEW.md     Section plan against the marking criteria
+│   └── *.docx                 Generated, gitignored
 ├── references/
 │   ├── references.bib
 │   └── annotated_bibliography.md

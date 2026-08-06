@@ -573,7 +573,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
     abs_text.add_run(
         " data predicts a property's current rating (A-G). I predict something more "
         "useful for that aiming problem: retrofit headroom, whether a home rated D-G has a 20-point "
-        "or greater gap between its current and potential efficiency score. I compare four "
+        "or greater gap between its current and potential efficiency score. This matters because "
+        "89.2% of the D-G homes in the test set do not clear that threshold, so a shortlist drawn "
+        "on rating alone is mostly spent on properties with little to gain. I compare four "
         "classifiers under nested cross-validation on 200,000 records from 2020 to 2024, then test "
         "them on held-out 2025 to 2026 data. "
         f"{winner_sentence} "
