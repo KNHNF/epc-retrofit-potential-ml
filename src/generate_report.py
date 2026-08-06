@@ -679,12 +679,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         p_intro1.add_run(
             "The UK is legally committed to net-zero by 2050. In the certificates I examine, "
-            "43.1% of homes are rated D or below "
-            "(200,000-record sample, 2020-2024), and retrofitting all of them at once is not "
-            "realistic (MHCLG, 2024). The useful question is which homes return the most energy saved per "
-            "pound. Existing EPC ML mostly predicts the current rating label [2, 3], which does "
-            "not help: a C-rated home has little room to improve. The useful signal is headroom, "
-            "the gap between current and potential EPC score."
+            "43.1% of homes are rated D or below, and retrofitting all of them at once is not "
+            "realistic (MHCLG, 2024). The useful question is which homes return the most energy "
+            "saved per pound. Existing EPC work mostly predicts the current rating label "
+            "(Seyedzadeh et al., 2018; Pasichnyi, Wallin and Kordas, 2019), which does not help: "
+            "a C-rated home has little room to improve. The useful signal is headroom, the gap "
+            "between current and potential EPC score."
         )
     else:
         p_intro1.add_run(
@@ -1064,9 +1064,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if boot:
         boot_sentence = (
             f" The margin over {boot['second_model']} is only {boot['gap']:.4f} ROC-AUC, so I "
-            f"resampled the test set {boot['n_resamples']:,} times: the gap holds in "
+            f"resampled the test set {boot['n_resamples']:,} times: it holds in "
             f"{boot['share_ahead']:.0%} of them (95% interval {boot['gap_ci_low']:+.4f} to "
-            f"{boot['gap_ci_high']:+.4f}), so the ordering is not one lucky sample."
+            f"{boot['gap_ci_high']:+.4f}), so it is not one lucky sample."
         )
     p_res = doc.add_paragraph()
     if safe:
@@ -1094,9 +1094,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_pr.add_run(
             "Precision sits below recall for every model, which is the shape of the problem rather "
             "than a fault: guessing the majority class scores 89.2% free at a 10.8% positive "
-            "rate, so recall does the real work. Fig. 5 shows the errors behind it: 733 missed "
-            "homes against 3,281 false flags, the asymmetry Section 10 accepts. The four curves "
-            "sit close together (Fig. 6), separating only as recall approaches 1.0."
+            "rate, so recall does the real work. Fig. 5 shows the errors: 733 missed homes "
+            "against 3,281 false flags, the asymmetry Section 10 accepts. The curves sit close "
+            "together (Fig. 6), separating only as recall approaches 1.0."
         )
     else:
         p_pr.add_run(
@@ -1277,19 +1277,21 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"{float(fl['recall']):.2f} on flats. Precision on flats is higher "
                 f"({float(fl['precision']):.2f}), so the model is not wrong about them, it is too "
                 f"cautious, having learned their {float(fl['positive_rate']):.1%} positive rate "
-                f"against {float(ho['positive_rate']):.1%} for houses. That matters for a scheme "
-                f"funding social housing, where flats are over-represented."
+                f"against {float(ho['positive_rate']):.1%}. That matters for a scheme funding "
+                f"social housing, where flats are over-represented."
             )
         if flat_fix:
             p_fix = doc.add_paragraph()
             p_fix.add_run(
-                f"That is a threshold problem, not a model problem, so it needs no retraining. Dropping "
-                f"the threshold for flats alone to {flat_fix['chosen_threshold']} lifts their "
-                f"recall from {flat_fix['flat_recall_before']} to "
-                f"{flat_fix['flat_recall_after']}, level with houses, costing precision "
-                f"{flat_fix['flat_precision_before']} to {flat_fix['flat_precision_after']}. F1 "
-                f"rises too, {flat_fix['flat_f1_before']} to {flat_fix['flat_f1_after']}, so it "
-                f"is not just trading one metric for another."
+                f"That is a threshold problem, not a model problem. Equalising recall across groups with "
+                f"a per-group threshold is the equality-of-opportunity criterion (Hardt, Price "
+                f"and Srebro, 2016). Dropping the flat threshold to "
+                f"{flat_fix['chosen_threshold']} lifts recall from "
+                f"{flat_fix['flat_recall_before']} to {flat_fix['flat_recall_after']}, level "
+                f"with houses, costing precision {flat_fix['flat_precision_before']} to "
+                f"{flat_fix['flat_precision_after']}. F1 rises too, "
+                f"{flat_fix['flat_f1_before']} to {flat_fix['flat_f1_after']}, so it is not "
+                f"just trading one metric for another."
             )
             fm.add(p_fix,
                 f"Threshold picked on one random half of the flats and scored on the other "
@@ -1316,9 +1318,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if safe:
             p_bristol.add_run(
                 f"To check this is more than a benchmark, I ran the trained Random Forest on every "
-                f"Bristol, City of certificate in the held-out test set: {n:,} properties never "
-                f"seen in training. The model has no location input, so it is scoring these "
-                f"homes on physical characteristics alone. Accuracy is {acc:.1%}, but guessing "
+                f"Bristol certificate in the held-out test set: {n:,} properties never seen in "
+                f"training. The model has no location input, so it scores these homes on "
+                f"physical characteristics alone. Accuracy is {acc:.1%}, but guessing "
                 f"\"not high potential\" scores {maj_base:.1%} free. Recall shows what accuracy "
                 f"hides: {recall:.1%} of true positives flagged (precision {precision:.1%}, "
                 f"F1 {f1:.2f}) against 0% for that baseline. Bristol's rate sits "
@@ -1466,7 +1468,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         doc.add_paragraph(
             "Choosing between the tree models turns on interpretability more than the score gap: "
             "Random Forest importances are easy to explain; XGBoost gain scores favour "
-            "high-cardinality columns and are harder to defend."
+            "high-cardinality columns."
         )
     else:
         doc.add_paragraph(
@@ -1713,6 +1715,13 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "classification learning algorithms. ",
         "Neural Computation.",
         " 10 (7), pp. 1895-1923."
+    )
+
+    add_reference(doc,
+        "Hardt, M., Price, E. and Srebro, N. (2016) Equality of opportunity in supervised "
+        "learning. ",
+        "Advances in Neural Information Processing Systems 29 (NIPS 2016).",
+        " pp. 3323-3331."
     )
 
     add_reference(doc,
