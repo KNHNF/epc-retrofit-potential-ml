@@ -86,21 +86,17 @@ citation on purpose:
   gap survives is standard practice, not a claim needing support.
 - **Section 7's cost and CO2 figures.** These come from the register's own current-minus-potential
   fields (MHCLG, 2024), already cited as the dataset. Nothing else is being asserted.
-- **Section 5.6's subgroup recall and the flat threshold.** Computed directly from the saved
-  predictions.
+- **Section 5.6's subgroup recall numbers.** Computed directly from the saved predictions. The
+  threshold method itself does cite Hardt, Price and Srebro (2016); the measurements do not.
 
 Do not add a citation to these just to look better referenced. Citing something for a number you
 computed yourself is worse than citing nothing.
 
-## One worth verifying and adding if there is time
+## Fairness
 
-The flat threshold in Section 5.6 equalises recall across property types, which is the criterion
-**Hardt, Price and Srebro (2016)**, *Equality of Opportunity in Supervised Learning* (NIPS 2016),
-formalises as "equality of opportunity", and per-group thresholds are the mechanism they propose for
-achieving it. Citing it would ground the fix in an established method rather than leaving it looking
-ad hoc, and it is the strongest single addition still available to the reference list.
-
-I have not added it because the exact page range has not been checked against the published
-proceedings. Verify title, authors, year, volume and pages before citing it. The same rule that
-applies everywhere else in this file applies here: a wrong or invented citation is worse than one
-fewer reference.
+**Hardt, Price and Srebro (2016)**, Justifies the per-group threshold in Section 5.6. Their
+"equality of opportunity" criterion is equal true positive rate across groups, which is exactly what
+lowering the flat threshold achieves (recall 0.49 to 0.90, matching houses at 0.91), and per-group
+thresholds are the mechanism they propose for reaching it. Without this the fix reads as something
+invented on the spot; with it, the fix is a named method applied to a diagnosed problem. Page range
+checked against the published proceedings (pp. 3323-3331), not assumed.

@@ -92,8 +92,10 @@ over half of high-potential flats. Precision on flats is *higher* (0.77), which 
 the model is not wrong about flats, it is too cautious, having learned their 4.2% base rate against
 13.1% for houses.
 
-That is a threshold problem rather than a model problem. Dropping the decision threshold for flats
-alone to 0.28 lifts recall to 0.90, level with houses, costing precision 0.77 to 0.61. F1 rises 0.60
+That is a threshold problem rather than a model problem. Equalising recall across groups with a
+per-group threshold is the equality-of-opportunity criterion (Hardt, Price and Srebro, 2016).
+Dropping the flat threshold to 0.28 lifts recall to 0.90, level with houses, costing precision
+0.77 to 0.61. F1 rises 0.60
 to 0.73, so it is a better operating point rather than a trade. The threshold was chosen on one
 random half of the flats and scored on the other, so the gain is not fitted to the reported numbers.
 It was tuned and scored inside the same 2025-2026 period and needs confirming on a later one before
