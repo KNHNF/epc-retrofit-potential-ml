@@ -79,8 +79,8 @@ the data rather than assumed. Surveying 1,776 homes (10% of the eligible test st
 
 | Strategy | Genuine cases found | Annual heating cost | Annual CO2 |
 |---|---|---|---|
-| Ranked by model | 1,667 | GBP 1,318,555 | 6,445 t |
-| Rating band only | 532 | GBP 716,444 | 2,825 t |
+| Ranked by model | 1,667 | GBP 1.3m | 6.4 kt |
+| Rating band only | 532 | GBP 0.7m | 2.8 kt |
 
 These assume the full recommended package is installed, so they are an upper bound on what the
 ranking buys, not a forecast of delivered savings.
@@ -162,7 +162,6 @@ memmap files. `04_Random_Forest.ipynb` runs single-threaded (`n_jobs=1`) for thi
 ├── tests/
 ├── report/
 │   ├── figures/
-│   ├── REPORT_OVERVIEW.md     Section plan against the marking criteria
 │   └── *.docx                 Generated, gitignored
 ├── references/
 │   ├── references.bib

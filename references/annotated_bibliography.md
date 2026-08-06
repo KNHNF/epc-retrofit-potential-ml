@@ -20,9 +20,9 @@ a single tree.
 trees overfit and are high-variance, which is exactly the weakness Breiman (2001) later fixes with
 ensembling. Cite these two together: 1984 states the problem, 2001 states the fix.
 
-**Chen and Guestrin (2016)**, Justifies XGBoost's inclusion and its `scale_pos_weight` mechanism for
-class imbalance. Also the citation for why gradient boosting is described as state-of-the-art on
-tabular data.
+**Chen and Guestrin (2016)**, Justifies XGBoost's inclusion and the minority-class weighting used
+for imbalance. Also the citation for gradient boosting's standing on tabular data. Cited twice, once
+for the method and once for the library.
 
 **Cortes and Vapnik (1995)**, Justifies SVM as the margin-based comparison model, the original
 support-vector classifier paper.
@@ -77,10 +77,30 @@ at 4+ authors).
 **Ministry of Housing, Communities and Local Government (2024)**, The dataset source itself
 (epc.opendatacommunities.org).
 
-## What's missing (worth adding if you have time before 6 August)
+## Sections that deliberately cite nothing
 
-The EPC_PLAN.md publication-route notes mention **Ali et al. / UCD group** on urban retrofit decisions
-(Applied Energy) as a citation to verify and add, that one hasn't been confirmed yet, unlike everything
-above which has been checked against the actual published paper (title, journal, volume, pages all
-verified). Don't cite the Ali et al. one until it's been checked the same way; a wrong or invented
-citation is worse than one fewer reference.
+Three parts of the report rest on my own analysis rather than anyone else's work, so they carry no
+citation on purpose:
+
+- **Section 5.1's bootstrap interval.** Resampling the test set to check whether a 0.0011 ROC-AUC
+  gap survives is standard practice, not a claim needing support.
+- **Section 7's cost and CO2 figures.** These come from the register's own current-minus-potential
+  fields (MHCLG, 2024), already cited as the dataset. Nothing else is being asserted.
+- **Section 5.6's subgroup recall and the flat threshold.** Computed directly from the saved
+  predictions.
+
+Do not add a citation to these just to look better referenced. Citing something for a number you
+computed yourself is worse than citing nothing.
+
+## One worth verifying and adding if there is time
+
+The flat threshold in Section 5.6 equalises recall across property types, which is the criterion
+**Hardt, Price and Srebro (2016)**, *Equality of Opportunity in Supervised Learning* (NIPS 2016),
+formalises as "equality of opportunity", and per-group thresholds are the mechanism they propose for
+achieving it. Citing it would ground the fix in an established method rather than leaving it looking
+ad hoc, and it is the strongest single addition still available to the reference list.
+
+I have not added it because the exact page range has not been checked against the published
+proceedings. Verify title, authors, year, volume and pages before citing it. The same rule that
+applies everywhere else in this file applies here: a wrong or invented citation is worse than one
+fewer reference.
