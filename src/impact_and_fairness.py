@@ -23,7 +23,7 @@ Writes data/processed/impact_summary.csv and data/processed/fairness_by_group.cs
 import csv
 import numpy as np
 import pandas as pd
-from sklearn.metrics import recall_score, precision_score
+from sklearn.metrics import recall_score, precision_score, f1_score
 
 DATA_DIR = "data/processed"
 SEED = 42
@@ -118,10 +118,66 @@ def fairness(te):
     return out, spread
 
 
+def flat_threshold(te):
+    """Fix the low recall on flats with a group-specific decision threshold.
+
+    The diagnosis in fairness() is that the model is not wrong about flats, it is
+    too cautious: precision is high, recall is not. That is a threshold problem,
+    not a model problem, so it does not need retraining.
+
+    The threshold has to be chosen somewhere other than where it is scored, or
+    the improvement is just fitting the test set. Flats are split in half: pick
+    the threshold on the first half, report on the second.
+    """
+    rng = np.random.default_rng(SEED)
+    fl = te[te.PROPERTY_TYPE == "Flat"].copy()
+    ho = te[te.PROPERTY_TYPE == "House"]
+    target = recall_score(ho.RETROFIT_POTENTIAL, ho.pred)   # match house recall
+
+    idx = rng.permutation(len(fl))
+    tune, hold = fl.iloc[idx[: len(fl) // 2]], fl.iloc[idx[len(fl) // 2:]]
+
+    grid = np.arange(0.05, 0.55, 0.01)
+    chosen = 0.5
+    for t in grid:                       # highest threshold that still hits target
+        if recall_score(tune.RETROFIT_POTENTIAL, (tune.proba >= t).astype(int)) >= target:
+            chosen = t
+    before = (hold.proba >= 0.5).astype(int)
+    after = (hold.proba >= chosen).astype(int)
+
+    row = {
+        "house_recall": f"{target:.3f}",
+        "chosen_threshold": f"{chosen:.2f}",
+        "flat_recall_before": f"{recall_score(hold.RETROFIT_POTENTIAL, before):.3f}",
+        "flat_recall_after": f"{recall_score(hold.RETROFIT_POTENTIAL, after):.3f}",
+        "flat_precision_before": f"{precision_score(hold.RETROFIT_POTENTIAL, before, zero_division=0):.3f}",
+        "flat_precision_after": f"{precision_score(hold.RETROFIT_POTENTIAL, after, zero_division=0):.3f}",
+        "flat_f1_before": f"{f1_score(hold.RETROFIT_POTENTIAL, before):.3f}",
+        "flat_f1_after": f"{f1_score(hold.RETROFIT_POTENTIAL, after):.3f}",
+        "n_holdout": len(hold),
+    }
+    print(f"  target (house recall)      {row['house_recall']}")
+    print(f"  threshold chosen on tune   {row['chosen_threshold']}")
+    print(f"  flat recall    {row['flat_recall_before']} to {row['flat_recall_after']}")
+    print(f"  flat precision {row['flat_precision_before']} to {row['flat_precision_after']}")
+    print(f"  flat F1        {row['flat_f1_before']} to {row['flat_f1_after']}")
+
+    with open(f"{DATA_DIR}/flat_threshold.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(row))
+        w.writeheader()
+        w.writerow(row)
+    return row
+
+
 if __name__ == "__main__":
     te = load()
-    print(f"Usable test rows: {len(te):,}\n")
+    print("Usable test rows: {:,}".format(len(te)))
+    print()
     print("Impact, surveying 10% of D-G stock:")
     impact(te)
-    print("\nFairness by subgroup:")
+    print()
+    print("Fairness by subgroup:")
     fairness(te)
+    print()
+    print("Flat-specific threshold:")
+    flat_threshold(te)
