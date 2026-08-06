@@ -669,10 +669,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
     # ------------------------------------------------------------------
     doc.add_heading("3. Dataset", level=1)
     doc.add_paragraph(
-        "The dataset is the UK EPC Open Data published by the Ministry of Housing, Communities "
-        "and Local Government (MHCLG, 2024): roughly 10.8 million domestic certificates for England and "
-        "Wales, 2020 to 2026. After deduplication and eligibility filtering that leaves 7.25 "
-        "million eligible for training (2020-2024) and 2.47 million for testing (2025-2026)."
+        "The dataset is the UK EPC Open Data (MHCLG, 2024): roughly 10.8 million domestic "
+        "certificates for England and Wales, 2020 to 2026. After deduplication and eligibility "
+        "filtering that leaves 7.25 million eligible for training and 2.47 million for testing."
     )
     p_sample = doc.add_paragraph()
     p_sample.add_run(
@@ -695,7 +694,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     )
     doc.add_paragraph(
         "where r is current EPC rating, and e_cur and e_pot are current and potential efficiency "
-        "score. That gives 21.7% positive in training and 10.8% in test (Fig. 1). The drop is "
+        "score. The 20-point cut-off is wider than every band above G (F spans 18, D spans 14), "
+        "so a qualifying gap always moves a home up at least one band and usually two. It is "
+        "also the median gap among D-G homes. That gives 21.7% positive in training and "
+        "10.8% in test (Fig. 1). The drop is "
         "not noise: newer certificates cover homes with less headroom left, likely because more "
         "are new builds or recent refurbishments. A random split would hide that shift and "
         "inflate test scores."
@@ -1004,11 +1006,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         p_res.add_run(
             result_sentence.rstrip()
-            + " Every model clears the no-skill baseline (a random classifier scores "
-            "ROC-AUC 0.5; PR-AUC equal to positive prevalence). The CV-to-test drop shows "
-            "up for all four and traces back to the temporal shift from Section 3: test "
-            "years hold fewer high-headroom homes, so the task is harder there, matching "
-            "deployment rather than a fault in the models."
+            + " Every model clears the no-skill baseline (ROC-AUC 0.5; PR-AUC equal to "
+            "prevalence). The CV-to-test drop shows up for all four and traces back to the "
+            "temporal shift from Section 3: test years hold fewer high-headroom homes, so the "
+            "task is harder there, matching deployment rather than a fault in the models."
         )
     else:
         p_res.add_run(
@@ -1214,8 +1215,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_bristol = doc.add_paragraph()
         if safe:
             p_bristol.add_run(
-                f"To check this is more than a benchmark exercise, I ran the trained Random "
-                f"Forest on every Bristol, City of certificate in the held-out test set: "
+                f"To check this is more than a benchmark exercise, I ran the trained Random Forest on "
+                f"every Bristol, City of certificate in the held-out test set: "
                 f"{n:,} properties never seen in training. The model has no location input, so "
                 f"it is not recognising Bristol, it is scoring these homes on their physical "
                 f"characteristics alone. Accuracy is {acc:.1%}, but guessing "
@@ -1255,9 +1256,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
         ):
             p_map = doc.add_paragraph()
             p_map.add_run(
-                "Predicted rate varies by district (Fig. 9), from BS1 (3.5%, lowest) to BS15 "
-                "(21.9%, highest); marker position is an approximate centroid, not a real "
-                "boundary."
+                "Predicted rate varies by district (Fig. 9), from BS1 (3.5%) to BS15 (21.9%); marker "
+                "position is an approximate centroid, not a real boundary."
             )
             add_figure(doc,
                 f"{FIGURES_DIR}/07_bristol_district_map.png",
@@ -1338,12 +1338,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
         lead_sentence = "[RESULT: state which model leads once all notebooks have been run.]"
     if safe:
         doc.add_paragraph(
-            "Without a model, a scheme screens on the rating band alone and treats every D-G home "
-            "as an equal candidate. That default is wasteful: 89.2% of homes in this test set do "
-            "not clear the 20-point threshold, so most of a rating-based shortlist is spent on "
-            "properties with little headroom. Ranking by predicted headroom instead catches 86.4% "
-            "of the genuine cases. The realistic use is triage: a council with a fixed survey "
-            "budget works down a ranked list rather than across a rating band."
+            "Without a model, a scheme screens on rating band alone and treats every D-G home as an "
+            "equal candidate. That is wasteful: 89.2% of homes here do not clear the 20-point "
+            "threshold, so most of a rating-based shortlist is spent on properties with little "
+            "headroom. Ranking by predicted headroom catches 86.4% of the genuine cases. The "
+            "realistic use is triage: a council with a fixed survey budget works down a ranked "
+            "list rather than across a band."
         )
         doc.add_paragraph(
             "Choosing between the two tree models turns on interpretability more than the Table 1 "
@@ -1365,8 +1365,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "XGBoost led under nested cross-validation, 0.9873 ROC-AUC against Random Forest's "
             "0.9858, then lost on the held-out years, 0.9694 against 0.9705. That fits why "
             "Random Forest was the main model: bagging "
-            "trades training-set fit for lower variance (Breiman, 2001), which held on data XGBoost's "
-            "flexibility had never seen. Consistent with the mechanism, not proven. The temporal "
+            "trades training-set fit for lower variance (Breiman, 2001), which held on data "
+            "XGBoost had never seen. Consistent with the mechanism, not proven. The temporal "
             "shift (21.7% to 10.8% positive) means future stock has fewer high-retrofit "
             "candidates; ranking still holds, but recalibrate annually against Fig. 8 with a "
             "recall bias."
@@ -1454,9 +1454,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("9. Future Work", level=1)
     if safe:
         doc.add_paragraph(
-            "Three extensions follow from the limitations above. Walk-forward retraining across "
-            "successive years would show whether the CV-to-test gap is a one-off or a trend, "
-            "and tell a scheme how often to retrain. Postcode-level data (deprivation, "
+            "Three extensions follow from the limitations above. Walk-forward retraining would show "
+            "whether the CV-to-test gap is a one-off or a trend, and tell a scheme how often to "
+            "retrain. Postcode-level data (deprivation, "
             "off-gas-grid status, scheme uptake) would let the model explain area differences "
             "it currently cannot, making Fig. 9 something to act on. Predicting the gap as a "
             "number rather than yes/no would allow ranking within a shortlist and drop the "
@@ -1490,8 +1490,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "a dwelling; no such linkage is performed. A false negative deprioritises a property "
             "that genuinely needs intervention; a false positive only wastes assessor time. That "
             "is why Section 7 recommends recall-oriented calibration, with a person deciding "
-            "which flagged properties get a visit. The pipeline is public at "
-            "https://github.com/KNHNF/epc-retrofit-potential-ml for independent checking."
+            "which flagged properties get a visit."
         )
     else:
         doc.add_paragraph(
