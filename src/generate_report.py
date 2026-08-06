@@ -238,6 +238,36 @@ def load_comparison_csv():
     return rows
 
 
+def load_impact():
+    path = f"{DATA_DIR}/impact_summary.csv"
+    if not os.path.exists(path):
+        return None
+    with open(path, newline='') as f:
+        rows = list(csv.DictReader(f))
+    if len(rows) < 2:
+        return None
+    d = {r['strategy']: r for r in rows}
+    return {
+        'surveyed': int(rows[0]['surveyed']),
+        'model_hits': int(d['Ranked by model']['true_positives']),
+        'band_hits': int(d['Rating band only']['true_positives']),
+        'model_cost': int(d['Ranked by model']['annual_cost_saving_gbp']),
+        'band_cost': int(d['Rating band only']['annual_cost_saving_gbp']),
+        'model_co2': float(d['Ranked by model']['annual_co2_saving_t']),
+        'band_co2': float(d['Rating band only']['annual_co2_saving_t']),
+        'uplift': float(rows[0]['uplift_x']),
+    }
+
+
+def load_fairness():
+    path = f"{DATA_DIR}/fairness_by_group.csv"
+    if not os.path.exists(path):
+        return None
+    with open(path, newline='') as f:
+        rows = list(csv.DictReader(f))
+    return rows or None
+
+
 def load_bootstrap_gap():
     path = f"{DATA_DIR}/bootstrap_gap.csv"
     if not os.path.exists(path):
@@ -535,6 +565,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     winners = determine_winners(comparison_rows)
     bristol_rows, bristol_summary = load_bristol_case()
     boot = load_bootstrap_gap()
+    impact = load_impact()
+    fairness_rows = load_fairness()
     fm = FootnoteManager(doc, use_endnotes=two_column)
 
     if bristol_summary:
@@ -666,10 +698,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("2. Problem Definition", level=1)
     doc.add_paragraph(
         "This is a multivariate supervised binary classification problem. Features are numerical "
-        "(current energy efficiency, floor area, CO2 emissions per floor area, heating and "
-        "hot-water costs, room counts), ordinal (rating encoded A=6 to G=0; component ratings "
-        "Very Good=5 to N/A=0), and nominal (property type, built form, wall type, tenure, mains "
-        "gas flag). All are observable at assessment time, and none are derived from the target."
+        "(efficiency score, floor area, CO2 per floor area, heating and hot-water costs, room "
+        "counts), ordinal (rating A=6 to G=0; component ratings Very Good=5 to N/A=0), and "
+        "nominal (property type, built form, wall type, tenure, mains gas). All are observable "
+        "at assessment time and none derive from the target."
     )
     doc.add_paragraph(
         "Potential energy efficiency and potential rating are excluded (target leakage): the "
@@ -692,9 +724,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     p_sample.add_run(
         "I draw a 200,000-record stratified training sample from 2020-2024 and a separate "
         "50,000-record test sample from 2025-2026. Splitting by time rather than at random "
-        "stops the model learning from properties assessed after the ones it predicts, which "
-        "is the situation it would face in use. Where a property was assessed more than once "
-        "(matched on UPRN), I keep only the most recent certificate."
+        "stops the model learning from properties assessed after the ones it predicts. Where a "
+        "property was assessed more than once (matched on UPRN), I keep the most recent."
     )
     fm.add(p_sample,
         "UPRN: Unique Property Reference Number, a persistent government identifier for a single "
@@ -711,11 +742,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "where r is current EPC rating, and e_cur and e_pot are current and potential efficiency "
         "score. The 20-point cut-off is wider than every band above G (F spans 18, D spans 14), "
         "so a qualifying gap always moves a home up at least one band and usually two. It is "
-        "also the median gap among D-G homes. That gives 21.7% positive in training and "
-        "10.8% in test (Fig. 1). The drop is "
-        "not noise: newer certificates cover homes with less headroom left, likely because more "
-        "are new builds or recent refurbishments. A random split would hide that shift and "
-        "inflate test scores."
+        "also the median gap among D-G homes. That gives 21.7% positive in training and 10.8% "
+        "in test (Fig. 1). The drop is not noise: newer certificates cover homes with less "
+        "headroom left. A random split would hide that shift and inflate test scores."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/01_class_balance.png",
@@ -731,12 +760,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         p_eda1 = doc.add_paragraph()
         p_eda1.add_run(
-            "Each certificate has 41 fields, 20 numeric and 21 categorical. Thirteen carry "
-            "missing values (Fig. 2). The floor-level energy rating (FLOOR_ENERGY_EFF on the "
-            "axis) is missing in 89.3% of records and is dropped as too sparse to impute. A "
-            "second cluster is missing in 14.7% and is filled with the median or most common "
-            "value. About 0.1% carry impossible negative values in energy, emissions, or cost "
-            "fields and are removed."
+            "Each certificate has 41 fields, 20 numeric and 21 categorical. Thirteen carry missing "
+            "values (Fig. 2). The floor-level energy rating is missing in 89.3% of records and is "
+            "dropped as too sparse to impute; a second cluster missing in 14.7% is filled with "
+            "the median or most common value. About 0.1% carry impossible negative values in "
+            "energy, emissions, or cost fields and are removed."
         )
         add_figure(doc,
             f"{FIGURES_DIR}/02_missing_values.png",
@@ -760,8 +788,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
         )
         p_eda3 = doc.add_paragraph()
         p_eda3.add_run(
-            "Construction age band shows a clear relationship with the target (Fig. 4): pre-1966 "
-            "properties carry the highest retrofit-potential rate (see Section 5.3)."
+            "Construction age band relates clearly to the target (Fig. 4): pre-1966 properties "
+            "carry the highest rate."
         )
         add_figure(doc,
             f"{FIGURES_DIR}/06_retrofit_rate_by_age.png",
@@ -848,11 +876,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_rf = doc.add_paragraph()
         p_rf.add_run("Random Forest").bold = True
         p_rf.add_run(
-            " is the main model: averaging many trees, each grown on a random subset of rows "
-            "and columns (bagging), cuts variance without adding bias (Breiman, 2001) and handles the "
-            "correlated pairs. A single Decision Tree is skipped because it overfits (Breiman et al., 1984). For "
-            "importance I shuffle one column at a time and measure the score drop, rather than "
-            "the built-in impurity score, which favours columns with many distinct values "
+            " is the main model: averaging many trees, each grown on a random subset of rows and "
+            "columns (bagging), cuts variance without adding bias (Breiman, 2001) and handles the "
+            "correlated pairs. A single Decision Tree is skipped because it overfits (Breiman et "
+            "al., 1984). For importance I shuffle one column at a time and measure the score drop, "
+            "rather than the impurity score, which favours columns with many distinct values "
             "whether or not they predict well (Strobl et al., 2007)."
         )
 
@@ -873,22 +901,20 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_svm.add_run(
             " are reference points. SVM tests whether a widest-margin boundary beats Logistic "
             "Regression's, its scores turned into probabilities by a fitted sigmoid (Platt "
-            "calibration) (Cortes and Vapnik, 1995). kNN was never fitted: beyond roughly 10 "
-            "to 15 columns nearest and farthest neighbours end up almost equally far away, so "
-            "distance stops meaning much (Beyer et al., 1999), and this model has 51. That "
-            "assumes continuous measurements and over half of mine are yes/no, so I treat it "
-            "as a reason to skip kNN, not proof it would fail."
+            "calibration) (Cortes and Vapnik, 1995). kNN was never fitted: beyond roughly 10 to "
+            "15 columns nearest and farthest neighbours end up almost equally far away, so "
+            "distance stops meaning much (Beyer et al., 1999), and this has 51. That assumes "
+            "continuous measurements and over half of mine are yes/no, so I treat it as a reason "
+            "to skip kNN, not proof it would fail."
         )
         doc.add_paragraph(
-            "All models weight classes inversely to frequency. I report F1-macro and "
-            "ROC-AUC as the main scores. Accuracy is not primary: majority guessing "
-            "scores 78.3% for free. Hyperparameters use nested cross-validation "
-            "(outer 5-fold stratified for generalisation, inner 3-fold for tuning) so "
-            "the same folds never both pick settings and report the score (Varma and Simon, "
-            "2006). The inner loop settled on C=10 for Logistic Regression, 30% of features per "
-            "split with unrestricted leaves for Random Forest, and depth 6 at learning rate 0.1 "
-            "for XGBoost. Final numbers use the 2025-2026 time holdout. Implementation is Python "
-            "with scikit-learn (Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016)."
+            "All models weight classes inversely to frequency. I report F1-macro and ROC-AUC, not "
+            "accuracy: majority guessing scores 78.3% for free. Nested cross-validation (5-fold "
+            "outer, 3-fold inner) keeps the folds that pick settings separate from the folds that "
+            "report the score (Varma and Simon, 2006). It settled on C=10 for Logistic "
+            "Regression, 30% of features per split for Random Forest, and depth 6 at learning "
+            "rate 0.1 for XGBoost. Final numbers use the 2025-2026 holdout, in Python with "
+            "scikit-learn (Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016)."
         )
     else:
         p_impl = doc.add_paragraph()
@@ -1167,9 +1193,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if safe:
             p_naive = doc.add_paragraph()
             p_naive.add_run(
-                "A low current score mechanically leaves more room for a large gap, so that alone "
-                "might explain the result. To test it I fit a Logistic Regression seeing only "
-                "current score and rating, same protocol. It "
+                "A low current score mechanically leaves more room for a large gap, so that alone might "
+                "explain the result. I fit a Logistic Regression seeing only current score and "
+                "rating, same protocol. It "
                 f"reaches {naive['test_roc_auc']:.4f} test ROC-AUC, only {auc_gap:.4f} below "
                 f"{winners['best_auc_model']}'s {best_auc:.4f}. On the imbalance-sensitive "
                 f"metrics the gap is wider: {f1_gap:.4f} F1-macro and {pr_gap:.4f} PR-AUC. "
@@ -1206,10 +1232,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("5.5 Calibration", level=2)
     doc.add_paragraph(
         "Ranking well is not the same as being right about the odds, and a council setting a "
-        "cut-off needs the second. All four curves sit below the diagonal (Fig. 8): every model "
-        "reads high. Of 100 homes scored at 70%, roughly 40 to 50 are genuinely high-potential, "
-        "not 70. Logistic Regression is the worst offender, Random Forest and SVM the closest to "
-        "honest. The score is safe to rank by, not to read as a percentage."
+        "cut-off needs the second. All four curves sit below the diagonal (Fig. 8): of 100 homes "
+        "scored at 70%, roughly 40 to 50 are genuinely high-potential. Logistic Regression is "
+        "worst, Random Forest and SVM closest to honest. The score is safe to rank by, not to "
+        "read as a percentage."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/calibration_curves.png",
@@ -1217,6 +1243,27 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "diagonal marks perfect calibration; every model sits below it.",
         two_column=two_column, dense=False
     )
+
+    # ------------------------------------------------------------------
+    # 5.6 Who the model works for
+    # ------------------------------------------------------------------
+    if fairness_rows:
+        doc.add_heading("5.6 Performance by Property Type and Tenure", level=2)
+        by_type = {r['group']: r for r in fairness_rows if r['dimension'] == 'Property type'}
+        ten = [float(r['recall']) for r in fairness_rows if r['dimension'] == 'Tenure']
+        p_fair = doc.add_paragraph()
+        if 'Flat' in by_type and 'House' in by_type:
+            fl, ho = by_type['Flat'], by_type['House']
+            p_fair.add_run(
+                f"Aggregate metrics can hide a group the model serves badly, so I split recall by "
+                f"property type and tenure. Tenure is even ({min(ten):.2f} to {max(ten):.2f}). "
+                f"Property type is not: recall is {float(ho['recall']):.2f} on houses but "
+                f"{float(fl['recall']):.2f} on flats, missing over half of high-potential flats. "
+                f"Precision on flats is higher ({float(fl['precision']):.2f}), so the model is not "
+                f"wrong about them, it is too cautious: their positive rate is "
+                f"{float(fl['positive_rate']):.1%} against {float(ho['positive_rate']):.1%}. For a "
+                f"scheme funding social housing, where flats are over-represented, that matters."
+            )
 
     # ------------------------------------------------------------------
     # 7. Real-World Application: A Bristol Case Study
@@ -1241,11 +1288,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"{n:,} properties never seen in training. The model has no location input, so "
                 f"it is not recognising Bristol, it is scoring these homes on their physical "
                 f"characteristics alone. Accuracy is {acc:.1%}, but guessing "
-                f"\"not high potential\" scores {maj_base:.1%} free, since only {pos_rate:.1%} "
-                f"are genuinely high-potential. Recall shows what accuracy hides: {recall:.1%} "
-                f"of true positives flagged (precision {precision:.1%}, F1 {f1:.2f}) against 0% "
-                f"for that baseline. Bristol's rate sits {abs(gap_pts):.1f} points below the "
-                f"rest ({rest_rate:.1%}), significant (z-test, p={p_value:.3f})."
+                f"\"not high potential\" scores {maj_base:.1%} free. Recall shows what accuracy "
+                f"hides: {recall:.1%} of true positives flagged (precision {precision:.1%}, "
+                f"F1 {f1:.2f}) against 0% for that baseline. Bristol's rate sits "
+                f"{abs(gap_pts):.1f} points below the rest ({rest_rate:.1%}), significant "
+                f"(z-test, p={p_value:.3f})."
             )
         else:
             p_bristol.add_run(
@@ -1358,14 +1405,32 @@ def build_report(mode="full", two_column=False, name_tag=""):
     else:
         lead_sentence = "[RESULT: state which model leads once all notebooks have been run.]"
     if safe:
-        doc.add_paragraph(
-            "Without a model, a scheme screens on rating band alone and treats every D-G home as an "
-            "equal candidate. That is wasteful: 89.2% of homes here do not clear the 20-point "
-            "threshold, so most of a rating-based shortlist is spent on properties with little "
-            "headroom. Ranking by predicted headroom catches 86.4% of the genuine cases. The "
-            "realistic use is triage: a council with a fixed survey budget works down a ranked "
-            "list rather than across a band."
-        )
+        p_impact = doc.add_paragraph()
+        if impact:
+            p_impact.add_run(
+                f"Without a model, a scheme screens on rating band alone: 89.2% of D-G homes do not "
+                f"clear the threshold, so most of that shortlist is wasted. Surveying "
+                f"{impact['surveyed']:,} homes, 10% of the eligible stock, ranking by model score "
+                f"reaches {impact['model_hits']:,} genuine cases against {impact['band_hits']:,} "
+                f"unranked, worth GBP {impact['model_cost']:,} a year against "
+                f"GBP {impact['band_cost']:,}, and {impact['model_co2']:,.0f} tonnes of CO2 "
+                f"against {impact['band_co2']:,.0f}."
+            )
+            fm.add(p_impact,
+                "Savings are the register's own current-minus-potential figures and assume the full "
+                "recommended package is installed, so they are an upper bound on what the ranking "
+                "buys, not a forecast of delivered savings."
+            )
+            p_impact.add_run(
+                f" That is {impact['uplift']:.1f} times the annual saving reached for the same "
+                f"number of surveys."
+            )
+        else:
+            p_impact.add_run(
+                "Without a model, a scheme screens on rating band alone and treats every D-G home "
+                "as an equal candidate. That is wasteful: 89.2% of homes here do not clear the "
+                "20-point threshold."
+            )
         doc.add_paragraph(
             "Choosing between the two tree models turns on interpretability more than the score "
             "gap: Random Forest importances are easy to explain; XGBoost gain scores favour "
@@ -1431,8 +1496,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "factors like climate, fuel poverty, or regional building practice.",
             "Single temporal split. One 2020-2024/2025-2026 holdout, not walk-forward "
             "retraining, so drift over time is not measured.",
-            "Fairness across subgroups. Aggregate metrics only; property type, tenure, and "
-            "region were not checked separately.",
+            "Recall on flats. Section 5.6 finds the model misses over half of high-potential "
+            "flats. Fixing it needs a flat-specific threshold or resampling, neither tried here.",
         ]
     else:
         limitation_items = [
@@ -1475,9 +1540,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("9. Future Work", level=1)
     if safe:
         doc.add_paragraph(
-            "Three extensions follow from the limitations above. Walk-forward retraining would show "
-            "whether the CV-to-test gap is a one-off or a trend, and tell a scheme how often to "
-            "retrain. Postcode-level data (deprivation, "
+            "Three extensions follow from the limitations. Walk-forward retraining would show "
+            "whether the CV-to-test gap is a trend, and how often to retrain. Postcode-level data (deprivation, "
             "off-gas-grid status, scheme uptake) would let the model explain area differences "
             "it currently cannot, making Fig. 9 something to act on. Predicting the gap as a "
             "number rather than yes/no would allow ranking within a shortlist and drop the "
@@ -1560,9 +1624,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "high-retrofit-potential UK properties from EPC open data. Section 6 held recall on "
             "17,165 Bristol properties the model had never seen, using no location input at all. "
             "Current efficiency, current rating, property type, and wall type drive the "
-            "predictions, and all are physically interpretable. Caveats in Section 8 "
-            "(EPC data quality; 200,000 of 7.25 million eligible records) mean this is a "
-            "credible estimate, not a final one."
+            "predictions, and all are physically interpretable. The caveats in Section 8 mean this "
+            "is a credible estimate, not a final one."
         )
     else:
         doc.add_paragraph(
