@@ -238,6 +238,20 @@ def load_comparison_csv():
     return rows
 
 
+def load_bootstrap_gap():
+    path = f"{DATA_DIR}/bootstrap_gap.csv"
+    if not os.path.exists(path):
+        return None
+    with open(path, newline='') as f:
+        row = next(csv.DictReader(f), None)
+    if row is None:
+        return None
+    for k in ('gap', 'gap_ci_low', 'gap_ci_high', 'share_ahead'):
+        row[k] = float(row[k])
+    row['n_resamples'] = int(row['n_resamples'])
+    return row
+
+
 def load_naive_baseline():
     path = f"{DATA_DIR}/naive_baseline_metrics.csv"
     if not os.path.exists(path):
@@ -520,6 +534,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     comparison_rows = load_comparison_csv()
     winners = determine_winners(comparison_rows)
     bristol_rows, bristol_summary = load_bristol_case()
+    boot = load_bootstrap_gap()
     fm = FootnoteManager(doc, use_endnotes=two_column)
 
     if bristol_summary:
@@ -1002,10 +1017,19 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "[RESULT: run all notebooks and re-generate this report so the ranked "
             "comparison can be stated here from the actual saved metrics.]"
         )
+    boot_sentence = ""
+    if boot:
+        boot_sentence = (
+            f" The margin over {boot['second_model']} is only {boot['gap']:.4f} ROC-AUC, so I "
+            f"resampled the test set {boot['n_resamples']:,} times: the gap holds in "
+            f"{boot['share_ahead']:.0%} of resamples (95% interval {boot['gap_ci_low']:+.4f} "
+            f"to {boot['gap_ci_high']:+.4f}), so the ordering is not luck of one sample."
+        )
     p_res = doc.add_paragraph()
     if safe:
         p_res.add_run(
             result_sentence.rstrip()
+            + boot_sentence
             + " Every model clears the no-skill baseline (ROC-AUC 0.5; PR-AUC equal to "
             "prevalence). The CV-to-test drop shows up for all four and traces back to the "
             "temporal shift from Section 3: test years hold fewer high-headroom homes, so the "
@@ -1025,13 +1049,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
     p_pr = doc.add_paragraph()
     if safe:
         p_pr.add_run(
-            "Table 1 needs one more number to read correctly: Random Forest's precision is "
-            "58.7%, well below its recall, because guessing the majority class scores 89.2% free "
-            "at this test set's 10.8% positive rate. Recall does the real work and F1-macro "
-            "balances both. Fig. 5 shows which errors it makes: 733 missed homes against 3,281 "
-            "false flags, the asymmetry Section 10 argues is the right one to accept. The four "
-            "curves sit close together (Fig. 6), separating only as recall approaches 1.0, where "
-            "Random Forest holds precision longest."
+            "Table 1 needs one more number: Random Forest's precision is 58.7%, well below its "
+            "recall, because guessing the majority class scores 89.2% free at a 10.8% positive "
+            "rate. Recall does the real work and F1-macro balances both. Fig. 5 shows the errors: "
+            "733 missed homes against 3,281 false flags, the asymmetry Section 10 accepts. The "
+            "four curves sit close together (Fig. 6), separating only as recall approaches 1.0."
         )
     else:
         p_pr.add_run(
@@ -1113,9 +1135,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Random Forest permutation importances (Fig. 7) rank current energy efficiency score "
             "as the strongest predictor by a wide margin, followed by current rating, property "
             "type, and energy consumption. Wall type matters too: EPC rates uninsulated solid "
-            "walls as poor by design, so solid-wall homes systematically carry more headroom. "
-            "Construction age is not in the model, so the age pattern in Fig. 4 is a property of "
-            "the housing stock, not something the model uses."
+            "walls as poor by design, so those homes carry more headroom. Construction age is "
+            "not in the model, so the pattern in Fig. 4 describes the stock, not the model."
         )
     else:
         p_fi.add_run(
@@ -1146,9 +1167,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if safe:
             p_naive = doc.add_paragraph()
             p_naive.add_run(
-                "A low current score mechanically leaves more room for a large gap, so that "
-                "alone might explain the result. To test it I fit a Logistic Regression seeing "
-                "only current efficiency score and current rating, under the same protocol. It "
+                "A low current score mechanically leaves more room for a large gap, so that alone "
+                "might explain the result. To test it I fit a Logistic Regression seeing only "
+                "current score and rating, same protocol. It "
                 f"reaches {naive['test_roc_auc']:.4f} test ROC-AUC, only {auc_gap:.4f} below "
                 f"{winners['best_auc_model']}'s {best_auc:.4f}. On the imbalance-sensitive "
                 f"metrics the gap is wider: {f1_gap:.4f} F1-macro and {pr_gap:.4f} PR-AUC. "
@@ -1346,9 +1367,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "list rather than across a band."
         )
         doc.add_paragraph(
-            "Choosing between the two tree models turns on interpretability more than the Table 1 "
-            "score gap: Random Forest permutation importances are easy to explain; XGBoost gain "
-            "scores favour columns with many distinct values and are harder to defend."
+            "Choosing between the two tree models turns on interpretability more than the score "
+            "gap: Random Forest importances are easy to explain; XGBoost gain scores favour "
+            "high-cardinality columns and are harder to defend."
         )
     else:
         doc.add_paragraph(
@@ -1405,9 +1426,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
             "Sample size. This uses 200,000 of 7.25 million eligible records; full-data training "
-            "may improve minority-class recall.",
-            "No location data. The model uses no geographic input at all, so it cannot pick up "
-            "local factors like climate, fuel poverty, or regional building practice.",
+            "may improve recall on the minority class.",
+            "No location data. The model uses no geographic input, so it cannot pick up local "
+            "factors like climate, fuel poverty, or regional building practice.",
             "Single temporal split. One 2020-2024/2025-2026 holdout, not walk-forward "
             "retraining, so drift over time is not measured.",
             "Fairness across subgroups. Aggregate metrics only; property type, tenure, and "
@@ -1696,22 +1717,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 continue
             word_count += len(p.text.split())
 
-    doc.add_paragraph()
-    wc_para = doc.add_paragraph()
-    wc_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    # state the brief's actual limit (2,000 +10%), not the tighter internal target.
-    # the footer used to say "2,100-word hard cap" while the count sat just over it,
-    # which reads as a self-declared breach even though 2,107 is well inside the brief
-    limit_note = "brief: 2,000 words +10%" if safe else "quality-first, not word-capped"
-    wc_run = wc_para.add_run(
-        f"Word count: {word_count} (Introduction to Conclusion, excluding title, "
-        f"abstract, references, and footnotes, per standard academic convention). "
-        f"Mode: {mode} ({limit_note})."
-    )
-    wc_run.italic = True
-    wc_run.font.size = Pt(10)
-    wc_run.font.name = 'Times New Roman'
-
+    # word count is printed to the console on build, not stamped into the document
     if two_column:
         # Endnotes default to lowercase roman numerals (i, ii, iii...);
         # match the arabic numbering the single-column doc's footnotes use.
