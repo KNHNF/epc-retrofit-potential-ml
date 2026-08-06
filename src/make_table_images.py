@@ -76,9 +76,9 @@ def render_comparison_table():
     # in the CSV but are dropped here too, matching the single-column
     # table, the specific CV-vs-test reversal numbers already live in
     # Section 6's prose with citations.
-    headers = ["Model", "Accuracy", "Recall", "F1", "ROC-AUC", "PR-AUC"]
-    src_keys = ["Model", "Test Accuracy", "Test Recall", "Test F1-macro",
-                "Test ROC-AUC", "Test PR-AUC"]
+    headers = ["Model", "Accuracy", "Recall", "Precision", "F1", "ROC-AUC", "PR-AUC"]
+    src_keys = ["Model", "Test Accuracy", "Test Recall", "Test Precision",
+                "Test F1-macro", "Test ROC-AUC", "Test PR-AUC"]
     # Bolded on the winning row below: accuracy is deliberately excluded,
     # the report's own argument is that accuracy is not the metric doing
     # the real work here, the table shouldn't visually reward it either.

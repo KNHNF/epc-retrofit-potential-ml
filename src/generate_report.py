@@ -382,13 +382,14 @@ def shade_cell(cell, hex_color):
 # repeating them here just added two columns' worth of width pressure for no
 # new information.
 COMPARISON_DISPLAY_COLS = [
-    'Model', 'Test Accuracy', 'Test Recall', 'Test F1-macro',
+    'Model', 'Test Accuracy', 'Test Recall', 'Test Precision', 'Test F1-macro',
     'Test ROC-AUC', 'Test PR-AUC',
 ]
 COMPARISON_HEADER_DISPLAY = {
     'Model': 'Model',
     'Test Accuracy': 'Accuracy',
     'Test Recall': 'Recall',
+    'Test Precision': 'Precision',
     'Test F1-macro': 'F1',
     'Test ROC-AUC': 'ROC-AUC',
     'Test PR-AUC': 'PR-AUC',
@@ -407,8 +408,9 @@ COMPARISON_COL_WIDTHS_IN = {
     # sum: Word silently failed to render the whole table rather than
     # clipping or shrinking it, found by reading the raw docx XML (the table
     # WAS there, correctly built) after it rendered as nothing in real Word.
-    'Model': 1.15, 'Test Accuracy': 1.0, 'Test Recall': 0.95,
-    'Test F1-macro': 0.85, 'Test ROC-AUC': 0.9, 'Test PR-AUC': 0.9,
+    'Model': 1.15, 'Test Accuracy': 0.82, 'Test Recall': 0.78,
+    'Test Precision': 0.85, 'Test F1-macro': 0.7, 'Test ROC-AUC': 0.85,
+    'Test PR-AUC': 0.82,
 }
 
 
@@ -632,16 +634,21 @@ def build_report(mode="full", two_column=False, name_tag=""):
     abs_text.add_run(
         " data predicts a property's current rating (A-G). I predict something more "
         "useful for that aiming problem: retrofit headroom, whether a home rated D-G has a 20-point "
-        "or greater gap between its current and potential efficiency score. This matters because "
-        "89.2% of the D-G homes in the test set do not clear that threshold, so a shortlist drawn "
-        "on rating alone is mostly spent on properties with little to gain. I compare four "
-        "classifiers under nested cross-validation on 200,000 records from 2020 to 2024, then test "
-        "them on held-out 2025 to 2026 data. "
+        "or greater gap between its current and potential efficiency score. The rating alone is a "
+        "poor filter, since 89.2% of D-G homes do not clear that gap."
+        + (f" Ranking a survey shortlist by predicted headroom instead of by rating reaches "
+           f"{impact['model_hits']:,} genuine cases against {impact['band_hits']:,} for the same "
+           f"number of visits, worth about GBP {impact['model_cost']/1e6:.1f}m a year in heating "
+           f"costs against GBP {impact['band_cost']/1e6:.1f}m, and {impact['model_co2']/1000:.1f} "
+           f"against {impact['band_co2']/1000:.1f} kilotonnes of CO2." if impact else "")
+        + " I compare four classifiers under nested cross-validation on 200,000 records from 2020 "
+        "to 2024, then test them on held-out 2025 to 2026 data. "
         f"{winner_sentence} "
-        "The positive rate also halves across that boundary, from 21.7% to 10.8%, which is "
-        "why the split is by time and not at random."
-        + (f" Applied to every held-out Bristol property, the same model holds "
-           f"{bristol_summary['bristol_accuracy']:.1%} accuracy, {bristol_context_str}." if bristol_summary else "")
+        "The positive rate halves across that boundary, from 21.7% to 10.8%, which is why the "
+        "split is by time and not at random."
+        + (f" Recall is uneven by property type, 0.91 on houses against "
+           f"{float(next((r['recall'] for r in fairness_rows if r['group'] == 'Flat'), 0)):.2f} on "
+           f"flats, which a flat-specific threshold closes (Section 5.6)." if fairness_rows else "")
     )
     abs_text.style.font.size = Pt(11)
 
@@ -1085,11 +1092,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
     p_pr = doc.add_paragraph()
     if safe:
         p_pr.add_run(
-            "Table 1 needs one more number: Random Forest's precision is 58.7%, well below its "
-            "recall, because guessing the majority class scores 89.2% free at a 10.8% positive "
-            "rate. Recall does the real work and F1-macro balances both. Fig. 5 shows the errors: "
-            "733 missed homes against 3,281 false flags, the asymmetry Section 10 accepts. The "
-            "four curves sit close together (Fig. 6), separating only as recall approaches 1.0."
+            "Precision sits below recall for every model, which is the shape of the problem rather "
+            "than a fault: guessing the majority class scores 89.2% free at a 10.8% positive "
+            "rate, so recall does the real work. Fig. 5 shows the errors behind it: 733 missed "
+            "homes against 3,281 false flags, the asymmetry Section 10 accepts. The four curves "
+            "sit close together (Fig. 6), separating only as recall approaches 1.0."
         )
     else:
         p_pr.add_run(
@@ -1436,9 +1443,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"threshold, so most of that shortlist is wasted. Surveying "
                 f"{impact['surveyed']:,} homes, 10% of eligible stock, ranking by model score reaches "
                 f"{impact['model_hits']:,} genuine cases against {impact['band_hits']:,} "
-                f"unranked, worth GBP {impact['model_cost']:,} a year against "
-                f"GBP {impact['band_cost']:,}, and {impact['model_co2']:,.0f} tonnes of CO2 "
-                f"against {impact['band_co2']:,.0f}."
+                f"unranked. That is roughly GBP {impact['model_cost']/1e6:.1f}m a year in "
+                f"heating costs against GBP {impact['band_cost']/1e6:.1f}m, and "
+                f"{impact['model_co2']/1000:.1f} kilotonnes of CO2 against "
+                f"{impact['band_co2']/1000:.1f}."
             )
             fm.add(p_impact,
                 "Savings are the register's own current-minus-potential figures and assume the full "
