@@ -610,10 +610,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     p_intro1 = doc.add_paragraph()
     if safe:
         p_intro1.add_run(
-            "The UK government is legally committed to net-zero greenhouse gas emissions by 2050. "
-            "In the certificates I examine, 43.1% of homes are rated D or below "
+            "The UK is legally committed to net-zero by 2050. In the certificates I examine, "
+            "43.1% of homes are rated D or below "
             "(200,000-record sample, 2020-2024), and retrofitting all of them at once is not "
-            "realistic [1]. The useful question is which homes return the most energy saved per "
+            "realistic (MHCLG, 2024). The useful question is which homes return the most energy saved per "
             "pound. Existing EPC ML mostly predicts the current rating label [2, 3], which does "
             "not help: a C-rated home has little room to improve. The useful signal is headroom, "
             "the gap between current and potential EPC score."
@@ -624,11 +624,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "certificates I examine, 43.1% of homes are rated D or below (200,000-record training "
             "sample, 2020-2024), and "
             "retrofitting all of them at once is neither financially nor logistically realistic "
-            "[1]. So the question that matters is which homes return the most energy saved per "
+            "(MHCLG, 2024). So the question that matters is which homes return the most energy saved per "
             "pound of public money. Existing EPC machine learning mostly answers a different question. "
-            "Some of it predicts the current rating label [2]; other work builds archetypes for "
+            "Some of it predicts the current rating label (Seyedzadeh et al., 2018); other work builds archetypes for "
             "city-scale energy models rather than "
-            "property-level decisions [3]. Neither targets improvement "
+            "property-level decisions (Pasichnyi, Wallin and Kordas, 2019). Neither targets improvement "
             "headroom. Predicting the rating label does not help much here, because a home already rated "
             "C has little room to improve whatever its label. Headroom is the thing worth flagging, the "
             "gap between a property's current and potential EPC score."
@@ -668,7 +668,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("3. Dataset", level=1)
     doc.add_paragraph(
         "The dataset is the UK EPC Open Data published by the Ministry of Housing, Communities "
-        "and Local Government [1]: roughly 10.8 million domestic certificates for England and "
+        "and Local Government (MHCLG, 2024): roughly 10.8 million domestic certificates for England and "
         "Wales, 2020 to 2026. After deduplication and eligibility filtering that leaves 7.25 "
         "million eligible for training (2020-2024) and 2.47 million for testing (2025-2026)."
     )
@@ -822,7 +822,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_lr.add_run("Logistic Regression").bold = True
         p_lr.add_run(
             " is the baseline: interpretable, calibrated, and a bar the others must beat. It "
-            "needs fewer training examples than Naive Bayes to reach its best score [6]. It "
+            "needs fewer training examples than Naive Bayes to reach its best score (Ng and Jordan, 2001). It "
             "stays a baseline because correlated inputs make its coefficients unstable."
         )
 
@@ -830,11 +830,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_rf.add_run("Random Forest").bold = True
         p_rf.add_run(
             " is the main model: averaging many trees, each grown on a random subset of rows "
-            "and columns (bagging), cuts variance without adding bias [7] and handles the "
-            "correlated pairs. A single Decision Tree is skipped because it overfits [8]. For "
+            "and columns (bagging), cuts variance without adding bias (Breiman, 2001) and handles the "
+            "correlated pairs. A single Decision Tree is skipped because it overfits (Breiman et al., 1984). For "
             "importance I shuffle one column at a time and measure the score drop, rather than "
             "the built-in impurity score, which favours columns with many distinct values "
-            "whether or not they predict well [9]."
+            "whether or not they predict well (Strobl et al., 2007)."
         )
 
         p_xgb = doc.add_paragraph()
@@ -842,7 +842,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_xgb.add_run(
             " is the second tree model, testing whether the Random Forest result comes from "
             "bagging or from tree ensembles generally. It grows trees in sequence, each "
-            "correcting the last ones' errors, trading variance reduction for lower bias [5]. "
+            "correcting the last ones' errors, trading variance reduction for lower bias (Chen and Guestrin, 2016). "
             "Minority-class weighting handles the imbalance. I expected it to win; Section 7 "
             "covers why it did not."
         )
@@ -852,12 +852,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_svm.add_run(" and ")
         p_svm.add_run("kNN").bold = True
         p_svm.add_run(
-            " are reference points. SVM tests whether a widest-margin straight-line boundary "
-            "beats Logistic Regression's, its scores turned into probabilities by a fitted "
-            "sigmoid (Platt calibration) [10]. kNN was never fitted: beyond roughly 10 to 15 "
-            "columns the nearest and farthest neighbours end up almost equally far away, so "
-            "distance stops meaning much [11], and this model has 51. That result assumes "
-            "continuous measurements and over half of mine are yes/no columns, so I treat it "
+            " are reference points. SVM tests whether a widest-margin boundary beats Logistic "
+            "Regression's, its scores turned into probabilities by a fitted sigmoid (Platt "
+            "calibration) (Cortes and Vapnik, 1995). kNN was never fitted: beyond roughly 10 "
+            "to 15 columns nearest and farthest neighbours end up almost equally far away, so "
+            "distance stops meaning much (Beyer et al., 1999), and this model has 51. That "
+            "assumes continuous measurements and over half of mine are yes/no, so I treat it "
             "as a reason to skip kNN, not proof it would fail."
         )
         doc.add_paragraph(
@@ -865,15 +865,17 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "ROC-AUC as the main scores. Accuracy is not primary: majority guessing "
             "scores 78.3% for free. Hyperparameters use nested cross-validation "
             "(outer 5-fold stratified for generalisation, inner 3-fold for tuning) so "
-            "the same folds never both pick settings and report the score [12]. Final "
-            "numbers use the 2025-2026 time holdout. Implementation is Python with "
-            "scikit-learn [4] and XGBoost [5]."
+            "the same folds never both pick settings and report the score (Varma and Simon, "
+            "2006). The inner loop settled on C=10 for Logistic Regression, 30% of features per "
+            "split with unrestricted leaves for Random Forest, and depth 6 at learning rate 0.1 "
+            "for XGBoost. Final numbers use the 2025-2026 time holdout. Implementation is Python "
+            "with scikit-learn (Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016)."
         )
     else:
         p_impl = doc.add_paragraph()
         p_impl.add_run(
-            "I implement everything in Python with scikit-learn [4], plus XGBoost's own library "
-            "for the gradient-boosting model [5]."
+            "I implement everything in Python with scikit-learn (Pedregosa et al., 2011), plus XGBoost's own library "
+            "for the gradient-boosting model (Chen and Guestrin, 2016)."
         )
         doc.add_paragraph(
             "After the cleaning above, the kept features have no remaining missing values "
@@ -881,7 +883,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "rather than from trying every algorithm available."
         )
         doc.add_paragraph(
-            "Logistic Regression serves as the baseline. Ng and Jordan [6] showed that "
+            "Logistic Regression serves as the baseline. Ng and Jordan (2001) showed that "
             "discriminative classifiers reach their asymptotic error with fewer training examples "
             "than generative models (e.g. Naive Bayes), justifying LR over NB on a dataset of "
             "this size. LR is interpretable via its coefficients, provides well-calibrated "
@@ -893,25 +895,25 @@ def build_report(mode="full", two_column=False, name_tag=""):
         )
         doc.add_paragraph(
             "Random Forest is my main model. Bagging many decorrelated trees over random feature "
-            "subsets cuts variance without adding bias [7], which is exactly what a single decision "
+            "subsets cuts variance without adding bias (Breiman, 2001), which is exactly what a single decision "
             "tree lacks. I reject a standalone Decision Tree outright: unpruned trees overfit badly, "
             "and even pruned ones still lose to the ensemble on both bias-variance tradeoff and "
-            "generalisation [8]. For feature importance I use permutation importance rather than the "
+            "generalisation (Breiman et al., 1984). For feature importance I use permutation importance rather than the "
             "default impurity-based score (Mean Decrease in Impurity, MDI), because MDI is known to be "
-            "unreliable across features of mixed cardinality [9], and my feature set mixes one-hot "
+            "unreliable across features of mixed cardinality (Strobl et al., 2007), and my feature set mixes one-hot "
             "categoricals with continuous numerics."
         )
         doc.add_paragraph(
             "XGBoost is my comparison against Random Forest for tree-based ensembles. It extends "
             "gradient boosting with second-order Taylor approximations of the loss, column "
             "subsampling, and L1/L2 regularisation, and is consistently one of the strongest "
-            "published performers on tabular benchmarks [5]. I expected it to beat Random Forest "
+            "published performers on tabular benchmarks (Chen and Guestrin, 2016). I expected it to beat Random Forest "
             "outright; Section 7 covers why it didn't. Here, scale_pos_weight handles the class "
             "imbalance by weighting the positive class inversely to its frequency."
         )
         doc.add_paragraph(
             "SVM (linear kernel, Platt-calibrated via CalibratedClassifierCV since LinearSVC has "
-            "no native probability output [10]) and kNN sit in this report as reference points, "
+            "no native probability output (Cortes and Vapnik, 1995)) and kNN sit in this report as reference points, "
             "not primary candidates alongside Random Forest and XGBoost. SVM specifically tests "
             "whether a maximum-margin linear boundary does any better than Logistic Regression's "
             "own linear boundary once both are compared on equal footing, calibrated probabilities "
@@ -919,8 +921,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "full test-set metrics for completeness. kNN was never fitted: past roughly 10-15 "
             "dimensions the distance to the nearest neighbour converges toward the distance to "
             "the farthest one, and Euclidean distance stops carrying useful discriminative signal "
-            "[11]. At 51 dimensions here, kNN would not have been a fair comparison, not a broken "
-            "one, though I should flag that Beyer et al.'s result [11] is derived for continuous "
+            "(Beyer et al., 1999). At 51 dimensions here, kNN would not have been a fair comparison, not a broken "
+            "one, though I should flag that Beyer et al.'s (1999) result is derived for continuous "
             "i.i.d. features, and this feature space is mostly one-hot categoricals plus a handful "
             "of continuous fields, not an exact match for that assumption. It is a heuristic "
             "argument for excluding kNN, not a strict mathematical guarantee that it would fail here."
@@ -931,7 +933,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "is not primary: majority-class guessing scores 78.3% on training data for free. "
             "Nested CV uses a 5-fold stratified outer loop (generalisation) and a 3-fold "
             "stratified inner loop (tuning). If the same folds pick hyperparameters and report "
-            "the score, that score is optimistically biased [12]. Final evaluation uses the "
+            "the score, that score is optimistically biased (Varma and Simon, 2006). Final evaluation uses the "
             "2025-2026 temporal holdout, never seen in training or tuning."
         )
 
@@ -941,8 +943,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("5. Results", level=1)
     doc.add_heading("5.1 Model Comparison", level=2)
     doc.add_paragraph(
-        "Table 1 gives test-set performance across five metrics. The winning row is bolded on "
-        "the four that matter under this imbalance, not on accuracy."
+        "Table 1 gives test-set performance. The winning row is bolded on the four metrics that "
+        "matter under this imbalance, not on accuracy."
     )
 
     # keep this short enough to fit one line at column width. A table caption sits
@@ -1065,22 +1067,21 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_mcn = doc.add_paragraph()
         p_mcn.add_run(
             "McNemar's test on four model pairs checks whether their error patterns differ "
-            "[13]. It fits a single train/test split; a paired t-test on nested-CV folds "
-            "would double-count overlapping folds and look over-confident [14]. Every pair "
-            "differs (p < 0.0001). With 50,000 test rows, small differences register as "
-            "significant: the models disagree on which properties they get wrong, not that "
-            "the gap is large. Table 1's ROC-AUC and F1 gaps are the better guide to "
-            "practical size."
+            "(McNemar, 1947). It suits a single train/test split; a paired t-test on nested-CV folds "
+            "would double-count overlapping folds and look over-confident (Dietterich, 1998). "
+            "Every pair differs (p < 0.0001), but with 50,000 rows small differences register "
+            "as significant: the models disagree on which properties they get wrong, not that "
+            "the gap is large. Table 1's gaps are the better guide to practical size."
         )
     else:
         doc.add_paragraph(
             "McNemar's test was applied to four model pairs (Random Forest vs Logistic Regression, "
             "XGBoost vs Logistic Regression, XGBoost vs Random Forest, and SVM vs Random Forest) to "
             "assess whether classification error distributions are statistically distinct "
-            "[13]. It is the right choice here: of five candidate significance tests for "
+            "(McNemar, 1947). It is the right choice here: of five candidate significance tests for "
             "comparing classifiers, it has acceptably low Type I error specifically for the single "
             "train/test split design used in this report, as opposed to designs involving repeated "
-            "resampling, where a 5x2cv test is recommended instead [14]. The test is "
+            "resampling, where a 5x2cv test is recommended instead (Dietterich, 1998). The test is "
             "appropriate for binary classifiers evaluated on the same test "
             "instances; the Diebold-Mariano test is for regression and is not applicable here. Every "
             "pair differs significantly (p < 0.0001), including SVM vs Random Forest, the pair with "
@@ -1126,7 +1127,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "age pattern in Fig. 4 describes the housing stock rather than anything the model learned."
         )
 
-    doc.add_heading("5.4 Ablation: Current-Score-Only Baseline", level=2)
+    doc.add_heading("5.4 Is the Model Just Doing Arithmetic?", level=2)
     naive = load_naive_baseline()
     best_row = None
     if winners and comparison_rows:
@@ -1148,8 +1149,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"reaches {naive['test_roc_auc']:.4f} test ROC-AUC, only {auc_gap:.4f} below "
                 f"{winners['best_auc_model']}'s {best_auc:.4f}. On the imbalance-sensitive "
                 f"metrics the gap is wider: {f1_gap:.4f} F1-macro and {pr_gap:.4f} PR-AUC. "
-                "Current score does most of the ranking work, which is why it dominates "
-                "Section 5.3, but the building's physical features still add real separation."
+                "Current score does most of the ranking work, but the building's physical "
+                "features still add real separation."
             )
         else:
             doc.add_paragraph(
@@ -1184,8 +1185,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "cut-off needs the second. All four curves sit below the diagonal (Fig. 8): every model "
         "reads high. Of 100 homes scored at 70%, roughly 40 to 50 are genuinely high-potential, "
         "not 70. Logistic Regression is the worst offender, Random Forest and SVM the closest to "
-        "honest. So the score is safe to rank by but not to read as a percentage, and a cut-off "
-        "has to come from the curve."
+        "honest. The score is safe to rank by, not to read as a percentage."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/calibration_curves.png",
@@ -1214,9 +1214,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
             p_bristol.add_run(
                 f"To check this is more than a benchmark exercise, I ran the trained Random "
                 f"Forest on every Bristol, City of certificate in the held-out test set: "
-                f"{n:,} properties never seen during training or tuning. The model has no "
-                f"location input, so it is not recognising Bristol, it is scoring these homes on "
-                f"their physical characteristics alone. Accuracy is {acc:.1%}, but guessing "
+                f"{n:,} properties never seen in training. The model has no location input, so "
+                f"it is not recognising Bristol, it is scoring these homes on their physical "
+                f"characteristics alone. Accuracy is {acc:.1%}, but guessing "
                 f"\"not high potential\" scores {maj_base:.1%} free, since only {pos_rate:.1%} "
                 f"are genuinely high-potential. Recall shows what accuracy hides: {recall:.1%} "
                 f"of true positives flagged (precision {precision:.1%}, F1 {f1:.2f}) against 0% "
@@ -1363,7 +1363,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "XGBoost led under nested cross-validation, 0.9873 ROC-AUC against Random Forest's "
             "0.9858, then lost on the held-out years, 0.9694 against 0.9705. That fits why "
             "Random Forest was the main model: bagging "
-            "trades training-set fit for lower variance [7], which held on data XGBoost's "
+            "trades training-set fit for lower variance (Breiman, 2001), which held on data XGBoost's "
             "flexibility had never seen. Consistent with the mechanism, not proven. The temporal "
             "shift (21.7% to 10.8% positive) means future stock has fewer high-retrofit "
             "candidates; ranking still holds, but recalibrate annually against Fig. 8 with a "
@@ -1376,7 +1376,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "0.9694 against 0.9705. "
             "This connects back to why Random Forest was the main model in the first place, not "
             "just the eventual winner. Bagging trades a little training-set fit for lower "
-            "variance [7], which is exactly what would let it hold up better on a test period "
+            "variance (Breiman, 2001), which is exactly what would let it hold up better on a test period "
             "XGBoost's extra flexibility had never seen. I read the CV-to-test gap as consistent "
             "with that mechanism, not proof of it: nothing in this report isolates variance from "
             "the other ways the two algorithms differ, so it stays an untested explanation, "
@@ -1398,7 +1398,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         limitation_items = [
             "Data quality. The true EPC error rate is estimated at 36-62% once assessor "
-            "disagreement is accounted for [15], which affects the wall-type feature, "
+            "disagreement is accounted for (Hardy and Glew, 2019), which affects the wall-type feature, "
             "engineered from the same unreliable free-text description fields.",
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
@@ -1416,7 +1416,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Data quality. The EPC database has documented quality issues: 27% of "
             "open-data EPCs carry at least one flag suggesting an error, and the true error rate "
             "is estimated at 36% to 62% once assessor disagreement on parameters such as "
-            "wall type and built form is accounted for [15]. This directly "
+            "wall type and built form is accounted for (Hardy and Glew, 2019). This directly "
             "affects the WALL_TYPE feature engineered in this pipeline, which is derived from the "
             "same free-text description fields identified there as unreliable.",
             "Target simplification. The binary target collapses heterogeneous properties: a "
@@ -1452,15 +1452,13 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("9. Future Work", level=1)
     if safe:
         doc.add_paragraph(
-            "Three extensions follow directly from the limitations above. Walk-forward "
-            "retraining across successive years would show whether the CV-to-test gap in "
-            "Section 7 is a one-off or a trend, and would tell a scheme how often to retrain. "
-            "Adding postcode-level data (deprivation, off-gas-grid status, local scheme uptake) "
-            "would let the model explain area differences it currently cannot, and would make "
-            "the district map in Fig. 9 something to act on rather than describe. Predicting "
-            "the gap as a number rather than a yes/no would let a scheme rank within its "
-            "shortlist instead of only selecting into it, and would sidestep the arbitrary "
-            "20-point cut-off."
+            "Three extensions follow from the limitations above. Walk-forward retraining across "
+            "successive years would show whether the CV-to-test gap is a one-off or a trend, "
+            "and tell a scheme how often to retrain. Postcode-level data (deprivation, "
+            "off-gas-grid status, scheme uptake) would let the model explain area differences "
+            "it currently cannot, making Fig. 9 something to act on. Predicting the gap as a "
+            "number rather than yes/no would allow ranking within a shortlist and drop the "
+            "arbitrary 20-point cut-off."
         )
     else:
         doc.add_paragraph(
@@ -1558,28 +1556,83 @@ def build_report(mode="full", two_column=False, name_tag=""):
         )
 
     # ------------------------------------------------------------------
-    # References. IEEE numeric style, listed in order of first citation.
+    # References. UWE Harvard, alphabetical by first author surname.
     # ------------------------------------------------------------------
     doc.add_heading("References", level=1)
 
     add_reference(doc,
-        "[1] Ministry of Housing, Communities and Local Government (2024) ",
+        "Beyer, K., Goldstein, J., Ramakrishnan, R. and Shaft, U. (1999) When is nearest "
+        "neighbor meaningful? ",
+        "International Conference on Database Theory (ICDT), Lecture Notes in Computer Science.",
+        " Vol. 1540, pp. 217-235."
+    )
+
+    add_reference(doc,
+        "Breiman, L. (2001) Random forests. ",
+        "Machine Learning.",
+        " 45 (1), pp. 5-32."
+    )
+
+    add_reference(doc,
+        "Breiman, L., Friedman, J.H., Olshen, R.A. and Stone, C.J. (1984) ",
+        "Classification and Regression Trees.",
+        " Belmont, CA: Wadsworth."
+    )
+
+    add_reference(doc,
+        "Chen, T. and Guestrin, C. (2016) XGBoost: a scalable tree boosting system. ",
+        "Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.",
+        " pp. 785-794."
+    )
+
+    add_reference(doc,
+        "Cortes, C. and Vapnik, V. (1995) Support-vector networks. ",
+        "Machine Learning.",
+        " 20 (3), pp. 273-297."
+    )
+
+    add_reference(doc,
+        "Dietterich, T.G. (1998) Approximate statistical tests for comparing supervised "
+        "classification learning algorithms. ",
+        "Neural Computation.",
+        " 10 (7), pp. 1895-1923."
+    )
+
+    add_reference(doc,
+        "Hardy, A. and Glew, D. (2019) An analysis of errors in the Energy Performance "
+        "Certificate database. ",
+        "Energy Policy.",
+        " 129, pp. 1168-1178."
+    )
+
+    add_reference(doc,
+        "McNemar, Q. (1947) Note on the sampling error of the difference between correlated "
+        "proportions or percentages. ",
+        "Psychometrika.",
+        " 12 (2), pp. 153-157."
+    )
+
+    add_reference(doc,
+        "Ministry of Housing, Communities and Local Government (2024) ",
         "Energy Performance of Buildings Data: England and Wales.",
         " Available from: https://epc.opendatacommunities.org [Accessed 9 July 2026]."
     )
+
     add_reference(doc,
-        "[2] Seyedzadeh, S., Pour Rahimian, F., Glesk, I. and Roper, M. (2018) Machine learning "
-        "for estimation of building energy consumption and performance: a review. ",
-        "Visualization in Engineering.",
-        " 6 (1), p. 5."
+        "Ng, A.Y. and Jordan, M.I. (2001) On discriminative vs. generative classifiers: a "
+        "comparison of logistic regression and naive Bayes. ",
+        "Advances in Neural Information Processing Systems 14 (NIPS 2001).",
+        " pp. 841-848."
     )
+
     add_reference(doc,
-        "[3] Pasichnyi, O., Wallin, J. and Kordas, O. (2019) Data-driven building archetypes for "
+        "Pasichnyi, O., Wallin, J. and Kordas, O. (2019) Data-driven building archetypes for "
         "urban building energy modelling. ",
         "Energy.",
         " 181, pp. 360-377."
     )
-    p_pedregosa = add_reference(doc, "[4] Pedregosa, F. ", "et al.", "")
+
+    p_pedregosa = add_reference(doc, "Pedregosa, F. ", "et al.", "")
     p_pedregosa.runs[1].italic = True
     p_pedregosa.add_run(" (2011) Scikit-learn: machine learning in Python. ").font.size = Pt(10)
     r = p_pedregosa.add_run("Journal of Machine Learning Research.")
@@ -1587,68 +1640,25 @@ def build_report(mode="full", two_column=False, name_tag=""):
     r.font.size = Pt(10)
     p_pedregosa.add_run(" 12, pp. 2825-2830.").font.size = Pt(10)
     add_reference(doc,
-        "[5] Chen, T. and Guestrin, C. (2016) XGBoost: a scalable tree boosting system. ",
-        "Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining.",
-        " pp. 785-794."
+        "Seyedzadeh, S., Pour Rahimian, F., Glesk, I. and Roper, M. (2018) Machine learning "
+        "for estimation of building energy consumption and performance: a review. ",
+        "Visualization in Engineering.",
+        " 6 (1), p. 5."
     )
+
     add_reference(doc,
-        "[6] Ng, A.Y. and Jordan, M.I. (2001) On discriminative vs. generative classifiers: a "
-        "comparison of logistic regression and naive Bayes. ",
-        "Advances in Neural Information Processing Systems 14 (NIPS 2001).",
-        " pp. 841-848."
-    )
-    add_reference(doc,
-        "[7] Breiman, L. (2001) Random forests. ",
-        "Machine Learning.",
-        " 45 (1), pp. 5-32."
-    )
-    add_reference(doc,
-        "[8] Breiman, L., Friedman, J.H., Olshen, R.A. and Stone, C.J. (1984) ",
-        "Classification and Regression Trees.",
-        " Belmont, CA: Wadsworth."
-    )
-    add_reference(doc,
-        "[9] Strobl, C., Boulesteix, A-L., Zeileis, A. and Hothorn, T. (2007) Bias in random "
+        "Strobl, C., Boulesteix, A-L., Zeileis, A. and Hothorn, T. (2007) Bias in random "
         "forest variable importance measures: illustrations, sources and a solution. ",
         "BMC Bioinformatics.",
         " 8, p. 25."
     )
+
     add_reference(doc,
-        "[10] Cortes, C. and Vapnik, V. (1995) Support-vector networks. ",
-        "Machine Learning.",
-        " 20 (3), pp. 273-297."
-    )
-    add_reference(doc,
-        "[11] Beyer, K., Goldstein, J., Ramakrishnan, R. and Shaft, U. (1999) When is nearest "
-        "neighbor meaningful? ",
-        "International Conference on Database Theory (ICDT), Lecture Notes in Computer Science.",
-        " Vol. 1540, pp. 217-235."
-    )
-    add_reference(doc,
-        "[12] Varma, S. and Simon, R. (2006) Bias in error estimation when using cross-validation "
+        "Varma, S. and Simon, R. (2006) Bias in error estimation when using cross-validation "
         "for model selection. ",
         "BMC Bioinformatics.",
         " 7, p. 91."
     )
-    add_reference(doc,
-        "[13] McNemar, Q. (1947) Note on the sampling error of the difference between correlated "
-        "proportions or percentages. ",
-        "Psychometrika.",
-        " 12 (2), pp. 153-157."
-    )
-    add_reference(doc,
-        "[14] Dietterich, T.G. (1998) Approximate statistical tests for comparing supervised "
-        "classification learning algorithms. ",
-        "Neural Computation.",
-        " 10 (7), pp. 1895-1923."
-    )
-    add_reference(doc,
-        "[15] Hardy, A. and Glew, D. (2019) An analysis of errors in the Energy Performance "
-        "Certificate database. ",
-        "Energy Policy.",
-        " 129, pp. 1168-1178."
-    )
-
     # Word count: Introduction through Conclusion only. Title, author block, abstract,
     # and references excluded (brief's 2000-word rule + standard academic convention).
     body_start = body_end = None
