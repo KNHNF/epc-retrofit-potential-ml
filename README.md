@@ -68,6 +68,39 @@ Random Forest wins on every test-set metric, despite XGBoost scoring higher in c
 not the model that generalised best to the genuinely unseen 2025-2026 period, a finding that only
 shows up because of the temporal (not random) test split.
 
+The margin over XGBoost is only 0.0011 ROC-AUC, small enough to ask whether one 50,000-row test
+sample got lucky. Resampling the test set 2,000 times, the gap holds in 100% of resamples (95%
+interval +0.0005 to +0.0017), so the ordering is real rather than noise.
+
+### What it is worth
+
+The register carries current and potential heating cost and CO2 per certificate, so the saving is in
+the data rather than assumed. Surveying 1,776 homes (10% of the eligible test stock):
+
+| Strategy | Genuine cases found | Annual heating cost | Annual CO2 |
+|---|---|---|---|
+| Ranked by model | 1,667 | GBP 1,318,555 | 6,445 t |
+| Rating band only | 532 | GBP 716,444 | 2,825 t |
+
+These assume the full recommended package is installed, so they are an upper bound on what the
+ranking buys, not a forecast of delivered savings.
+
+### Where it does not work
+
+Aggregate metrics hid a real gap. Recall is 0.91 on houses but 0.49 on flats, so the model missed
+over half of high-potential flats. Precision on flats is *higher* (0.77), which rules out confusion:
+the model is not wrong about flats, it is too cautious, having learned their 4.2% base rate against
+13.1% for houses.
+
+That is a threshold problem rather than a model problem. Dropping the decision threshold for flats
+alone to 0.28 lifts recall to 0.90, level with houses, costing precision 0.77 to 0.61. F1 rises 0.60
+to 0.73, so it is a better operating point rather than a trade. The threshold was chosen on one
+random half of the flats and scored on the other, so the gain is not fitted to the reported numbers.
+It was tuned and scored inside the same 2025-2026 period and needs confirming on a later one before
+deployment.
+
+Worked through step by step in `05_Comparison_Evaluation.ipynb` section 6.
+
 ## How to run
 
 ```
@@ -82,12 +115,15 @@ Then run the notebooks in order:
 3. `03_Baseline_LR.ipynb`, Logistic Regression baseline
 4. `04_Random_Forest.ipynb`, Random Forest, main model
 5. `04b_XGBoost.ipynb`, XGBoost comparison
-6. `05_Comparison_Evaluation.ipynb`, SVM, four-way comparison, McNemar tests, calibration
+6. `05_Comparison_Evaluation.ipynb`, SVM, four-way comparison, McNemar tests, calibration,
+   subgroup recall and the flat threshold fix
 
 Then build the figures and the report:
 
 ```
 python src/bristol_case_study.py     # per-district Bristol predictions
+python src/impact_and_fairness.py    # cost/CO2 impact, subgroup recall, flat threshold
+python src/bootstrap_ci.py           # confidence intervals on the model gap
 python src/make_bristol_map.py       # Fig. 9, district map
 python src/make_table_images.py      # table images for the two-column build
 python src/generate_report.py human  # builds the .docx from the saved metrics
@@ -116,6 +152,8 @@ memmap files. `04_Random_Forest.ipynb` runs single-threaded (`n_jobs=1`) for thi
 │   ├── preprocessing.py
 │   ├── evaluation.py
 │   ├── bristol_case_study.py  Per-district Bristol predictions and z-test
+│   ├── impact_and_fairness.py Cost/CO2 impact, subgroup recall, flat threshold
+│   ├── bootstrap_ci.py        Confidence intervals on the model gap
 │   ├── make_bristol_map.py    Fig. 9, district map on an OpenStreetMap basemap
 │   ├── make_table_images.py   Tables as images, for the two-column build
 │   ├── two_column_layout.py   Floating figures, endnotes, IEEE-style columns
