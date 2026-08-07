@@ -1462,19 +1462,18 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         p_xgb = doc.add_paragraph()
         p_xgb.add_run(
-            "XGBoost led narrowly under nested cross-validation, then lost narrowly on the "
-            "held-out years. This is why I picked Random Forest as the main model in the first "
-            "place: bagging trades some training-set fit for lower variance (Breiman, 2001), and "
-            "that is exactly the kind of thing that would hold up on data XGBoost had never seen. "
-            "I cannot prove that is the actual cause, only that it fits. The temporal shift also "
-            "means future stock has proportionally fewer high-retrofit candidates; ranking still "
-            "holds, but the threshold needs recalibrating annually against Fig. 8, biased toward "
-            "recall."
+            "XGBoost led narrowly under nested cross-validation (0.9873 ROC-AUC against Random "
+            "Forest's 0.9858), then lost narrowly on the held-out years (0.9694 against 0.9705). "
+            "This is why I picked Random Forest as the main model in the first place: bagging "
+            "trades some training-set fit for lower variance (Breiman, 2001), and that is "
+            "exactly the kind of thing that would hold up on data XGBoost had never seen. I "
+            "cannot prove that is the actual cause, only that it fits. The temporal shift also "
+            "means future stock has proportionally fewer high-retrofit candidates; ranking "
+            "still holds, but the threshold needs recalibrating annually against Fig. 8, "
+            "biased toward recall."
         )
         fm.add(p_xgb,
-            "Nested-CV ROC-AUC 0.9873 (XGBoost) against 0.9858 (Random Forest); held-out "
-            "2025-2026 test ROC-AUC 0.9694 against 0.9705. Positive rate falls from 21.7% to "
-            "10.8% across the temporal split."
+            "Positive rate falls from 21.7% to 10.8% across the temporal split."
         )
     else:
         doc.add_paragraph(
