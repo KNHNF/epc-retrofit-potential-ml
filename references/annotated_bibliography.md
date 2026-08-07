@@ -35,17 +35,7 @@ training rows here that asymptotic regime is comfortably reached.
 default impurity-based (MDI) importance. MDI is biased toward high-cardinality/continuous features,
 which matters here because the feature set mixes one-hot categoricals with continuous numerics.
 
-**McNemar (1947)**, Justifies the significance test used to compare models. McNemar's test is for
-paired binary classifiers evaluated on the *same* test set; the Diebold-Mariano test (used in the
-BM-forecasting dissertation project, not this one) is for regression and would be the wrong tool here.
-
-**Dietterich (1998)**, Justifies *why* McNemar's test specifically, not just that it exists. Reviews
-five candidate significance tests for comparing two classifiers and shows McNemar's test has
-acceptably low Type I error for a single train/test split design, which is exactly this project's
-setup (one temporal 2025-2026 hold-out, not repeated resampling). Dietterich's own alternative,
-5x2cv, is for designs with multiple resampled splits, not applicable here. Cite this alongside
-McNemar (1947) if asked "isn't a 1947 test too old", it shows the choice was checked against modern
-methodological literature, not just inherited from a textbook.
+**Dietterich (1998)**, The only citation for McNemar's test in this report. The test itself dates from 1947, but that paper only introduces it; Dietterich is what justifies *choosing* it, so it is the one cited. Naming a test without citing its origin paper is normal, and it keeps a 1940s date from sitting oddly among modern work. He reviews five candidate significance tests for comparing two classifiers and shows McNemar's has acceptably low Type I error for a single train/test split, which is exactly this setup (one temporal 2025-2026 hold-out, not repeated resampling). His own alternative, 5x2cv, is for designs with multiple resampled splits and does not apply here.
 
 **Pedregosa et al. (2011)**, The scikit-learn paper. Cite once, generically, for the software stack.
 

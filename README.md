@@ -4,7 +4,7 @@ Predicting which UK residential properties have the most retrofit headroom, from
 Performance Certificate (EPC) data.
 
 MSc Data Science, UWE Bristol. Module: Machine Learning and Predictive Analytics.
-Author: Karan Homayounfar (25065219). Coursework deadline: 6 August 2026.
+Author: Karan Homayounfar (25065219). Coursework deadline: 8 August 2026.
 
 ## Problem
 
@@ -28,9 +28,24 @@ Training set: 200,000 records stratified from certificates lodged 2020-2024.
 Test set: 50,000 records from certificates lodged 2025-2026.
 
 The split is temporal, not random. This matters: the positive class rate shifts from 21.7% in
-training to 10.8% in test, a real distribution shift that a random split would have hidden. Raw
-and processed data are gitignored (too large for git, and the raw files contain address data);
-regenerate them with `src/00_prepare_data.py`.
+training to 10.8% in test, a real distribution shift that a random split would have hidden.
+
+### Getting the data
+
+Raw and processed data are gitignored: the raw files are several GB and carry address-level
+records. To reproduce from scratch you need to download them yourself.
+
+1. Register (free) at https://epc.opendatacommunities.org and download the domestic England and
+   Wales certificates for 2020 through 2026.
+2. Put one CSV per year in `data/raw/`, named `certificates-2020.csv` through
+   `certificates-2026.csv`. That naming is what `src/00_prepare_data.py` looks for.
+3. Run `python src/00_prepare_data.py`. It reads the raw CSVs in chunks (they do not fit in
+   memory), applies the cleaning and eligibility filters, and writes the train and test parquet
+   samples into `data/processed/`.
+
+Everything downstream reads from `data/processed/`, so once that step succeeds the notebooks and
+scripts run in the order below. The random seed is fixed at 42 throughout, so the samples and
+splits are reproducible.
 
 ## Method
 
@@ -90,13 +105,12 @@ ranking buys, not a forecast of delivered savings.
 Aggregate metrics hid a real gap. Recall is 0.91 on houses but 0.49 on flats, so the model missed
 over half of high-potential flats. Precision on flats is *higher* (0.77), which rules out confusion:
 the model is not wrong about flats, it is too cautious, having learned their 4.2% base rate against
-13.1% for houses.
+13.8% for houses.
 
 That is a threshold problem rather than a model problem. Equalising recall across groups with a
 per-group threshold is the equality-of-opportunity criterion (Hardt, Price and Srebro, 2016).
 Dropping the flat threshold to 0.28 lifts recall to 0.90, level with houses, costing precision
-0.77 to 0.61. F1 rises 0.60
-to 0.73, so it is a better operating point rather than a trade. The threshold was chosen on one
+0.77 to 0.61. F1 rises 0.60 to 0.73, so it is a better operating point rather than a trade. The threshold was chosen on one
 random half of the flats and scored on the other, so the gain is not fitted to the reported numbers.
 It was tuned and scored inside the same 2025-2026 period and needs confirming on a later one before
 deployment.

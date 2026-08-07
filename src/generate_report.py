@@ -633,8 +633,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         )
     abs_text.add_run(
         " data predicts a property's current rating (A-G). I predict something more "
-        "useful for that aiming problem: retrofit headroom, whether a home rated D-G has a 20-point "
-        "or greater gap between its current and potential efficiency score. The rating alone is a "
+        "useful for that aiming problem: retrofit headroom, whether a home rated D-G scores at "
+        "least 20 points below what it would reach if the assessor's recommended work were done "
+        "(the potential score, on the same 1-100 scale). The rating alone is a "
         "poor filter, since 89.2% of D-G homes do not clear that gap."
         + (f" Ranking a survey shortlist by predicted headroom instead of by rating reaches "
            f"{impact['model_hits']:,} genuine cases against {impact['band_hits']:,} for the same "
@@ -683,8 +684,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "realistic (MHCLG, 2024). The useful question is which homes return the most energy "
             "saved per pound. Existing EPC work mostly predicts the current rating label "
             "(Seyedzadeh et al., 2018; Pasichnyi, Wallin and Kordas, 2019), which does not help: "
-            "a C-rated home has little room to improve. The useful signal is headroom, the gap "
-            "between current and potential EPC score."
+            "a C-rated home has little room to improve. The useful signal is headroom: the gap "
+            "between a home's current score and the score it would reach if the assessor's "
+            "recommended work were done, both on the same 1-100 scale."
         )
     else:
         p_intro1.add_run(
@@ -737,7 +739,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_paragraph(
         "The dataset is the UK EPC Open Data (MHCLG, 2024): roughly 10.8 million domestic "
         "certificates for England and Wales, 2020 to 2026. After deduplication and eligibility "
-        "filtering that leaves 7.25 million eligible for training and 2.47 million for testing."
+        "filtering that leaves 7.25 million eligible for training and 2.47 million for testing. "
+        "Each certificate carries both scores, current and potential."
     )
     p_sample = doc.add_paragraph()
     p_sample.add_run(
@@ -1135,11 +1138,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_mcn = doc.add_paragraph()
         p_mcn.add_run(
             "McNemar's test on four model pairs checks whether their error patterns differ "
-            "(McNemar, 1947). It suits a single train/test split; a paired t-test on nested-CV folds "
-            "would double-count overlapping folds and look over-confident (Dietterich, 1998). "
-            "Every pair differs (p < 0.0001), but with 50,000 rows small differences register "
-            "as significant: the models disagree on which properties they get wrong, not that "
-            "the gap is large. Table 1's gaps are the better guide to practical size."
+            "(Dietterich, 1998). It suits a single train/test split; a paired t-test on nested-CV "
+            "folds would double-count overlapping folds and look over-confident. Every pair "
+            "differs (p < 0.0001), but with 50,000 rows small differences register as "
+            "significant. What that means in practice: the models get different properties "
+            "wrong, not that one is meaningfully better. Table 1's gaps are the better guide "
+            "to size."
         )
     else:
         doc.add_paragraph(
@@ -1214,7 +1218,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 "explain the result. I fit a Logistic Regression on current score and rating "
                 "only, same protocol. It "
                 f"reaches {naive['test_roc_auc']:.4f} test ROC-AUC, only {auc_gap:.4f} below "
-                f"{winners['best_auc_model']}'s {best_auc:.4f}. On the imbalance-sensitive "
+                f"{winners['best_auc_model']}'s {best_auc:.4f}, which is close enough to be "
+                f"uncomfortable. On the imbalance-sensitive "
                 f"metrics the gap is wider: {f1_gap:.4f} F1-macro and {pr_gap:.4f} PR-AUC. "
                 "Current score does most of the ranking work, but the building's physical "
                 "features still add real separation."
@@ -1250,7 +1255,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_paragraph(
         "Ranking well is not the same as being right about the odds. All four curves sit below "
         "the diagonal (Fig. 8): of 100 homes scored at 70%, roughly 40 to 50 are genuinely "
-        "high-potential. The score is safe to rank by, not to read as a percentage."
+        "high-potential. In plain terms the ordering is trustworthy but the number is not, so "
+        "a cut-off has to come off the curve rather than off the printed score."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/calibration_curves.png",
@@ -1726,13 +1732,6 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "Certificate database. ",
         "Energy Policy.",
         " 129, pp. 1168-1178."
-    )
-
-    add_reference(doc,
-        "McNemar, Q. (1947) Note on the sampling error of the difference between correlated "
-        "proportions or percentages. ",
-        "Psychometrika.",
-        " 12 (2), pp. 153-157."
     )
 
     add_reference(doc,
