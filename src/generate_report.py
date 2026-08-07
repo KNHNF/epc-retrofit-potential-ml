@@ -604,7 +604,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     authors = doc.add_paragraph()
     authors.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = authors.add_run(
-        "Karan Homayounfar (25065219)\n"
+        "Karen Homayounfar (25065219)\n"
         "MSc Data Science, UWE Bristol\n"
         "Machine Learning and Predictive Analytics\n"
         "Code: https://github.com/KNHNF/epc-retrofit-potential-ml"
@@ -1216,13 +1216,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
             p_naive.add_run(
                 "A low current score mechanically leaves more room for a large gap, so that alone might "
                 "explain the result. I fit a Logistic Regression on current score and rating "
-                "only, same protocol. It "
-                f"reaches {naive['test_roc_auc']:.4f} test ROC-AUC, only {auc_gap:.4f} below "
-                f"{winners['best_auc_model']}'s {best_auc:.4f}, which is close enough to be "
-                f"uncomfortable. On the imbalance-sensitive "
-                f"metrics the gap is wider: {f1_gap:.4f} F1-macro and {pr_gap:.4f} PR-AUC. "
-                "Current score does most of the ranking work, but the building's physical "
-                "features still add real separation."
+                "only, same protocol. Its ROC-AUC comes within "
+                f"{auc_gap:.3f} of {winners['best_auc_model']}'s, close enough to be uncomfortable, "
+                "but on the imbalance-sensitive metrics, F1-macro and PR-AUC, the naive model falls "
+                "much further behind. Current score does most of the ranking work, but the "
+                "building's physical features still add real separation."
             )
         else:
             doc.add_paragraph(
@@ -1276,13 +1274,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if 'Flat' in by_type and 'House' in by_type:
             fl, ho = by_type['Flat'], by_type['House']
             p_fair.add_run(
-                f"Tenure is even ({min(ten):.2f} to {max(ten):.2f}); "
-                f"property type is not. Recall is {float(ho['recall']):.2f} on houses but "
-                f"{float(fl['recall']):.2f} on flats. Precision on flats is higher "
-                f"({float(fl['precision']):.2f}), so the model is not wrong about them, it is too "
-                f"cautious, having learned their {float(fl['positive_rate']):.1%} positive rate "
-                f"against {float(ho['positive_rate']):.1%}. That matters for a scheme funding "
-                f"social housing, where flats are over-represented."
+                "Recall by tenure is even; recall by property type is not, coming in noticeably "
+                "lower on flats than on houses. Precision on flats is actually higher, so the "
+                "model is not wrong about them, it is too cautious, having learned their much "
+                "lower positive rate in training. That matters for a scheme funding social "
+                "housing, where flats are over-represented."
             )
         if flat_fix:
             p_fix = doc.add_paragraph()
@@ -1323,12 +1319,19 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"To check this is more than a benchmark, I ran the trained Random Forest on every "
                 f"Bristol certificate in the held-out test set: {n:,} properties never seen in "
                 f"training. The model has no location input, so it scores these homes on "
-                f"physical characteristics alone. Accuracy is {acc:.1%}, but guessing "
-                f"\"not high potential\" scores {maj_base:.1%} free. Recall shows what accuracy "
-                f"hides: {recall:.1%} of true positives flagged (precision {precision:.1%}, "
-                f"F1 {f1:.2f}) against 0% for that baseline. Bristol's rate sits "
-                f"{abs(gap_pts):.1f} points below the rest ({rest_rate:.1%}), significant "
-                f"(z-test, p={p_value:.3f})."
+                f"physical characteristics alone. Accuracy alone overstates this, since always "
+                f"guessing \"not high potential\" scores almost as well by construction. Recall is "
+                f"the metric that actually matters here, and it holds up on this unseen city: the "
+                f"model flags a real majority of Bristol's genuine high-potential properties, "
+                f"against none for that guessing baseline. Bristol's true positive rate is "
+                f"significantly lower than the rest of the test set (z-test, p={p_value:.3f}), "
+                f"which reads as a real feature of Bristol's housing stock, not a model artefact."
+            )
+            fm.add(p_bristol,
+                f"Accuracy {acc:.1%} against a {maj_base:.1%} majority-class baseline; recall "
+                f"{recall:.1%}, precision {precision:.1%}, F1 {f1:.2f}; Bristol's {pos_rate:.1%} "
+                f"positive rate sits {abs(gap_pts):.1f} points below the {rest_rate:.1%} rate in "
+                f"the rest of the test set."
             )
         else:
             p_bristol.add_run(
@@ -1444,23 +1447,22 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_impact = doc.add_paragraph()
         if impact:
             p_impact.add_run(
-                f"Is rating-band screening enough? Not really. 89.2% of D-G homes miss the "
-                f"threshold, so a band-only shortlist is mostly noise. Surveying "
-                f"{impact['surveyed']:,} homes, 10% of eligible stock, ranking by model score finds "
-                f"{impact['model_hits']:,} genuine cases against {impact['band_hits']:,} "
-                f"unranked. That is roughly GBP {impact['model_cost']/1e6:.1f}m a year in "
-                f"heating costs against GBP {impact['band_cost']/1e6:.1f}m, and "
-                f"{impact['model_co2']/1000:.1f} kilotonnes of CO2 against "
-                f"{impact['band_co2']/1000:.1f}."
+                "Is rating-band screening enough? Not really. 89.2% of D-G homes miss the "
+                "threshold, so a band-only shortlist is mostly noise. Ranking the same survey "
+                "budget by model score instead finds several times more genuine retrofit "
+                "candidates, translating into several times the annual heating-cost and CO2 "
+                f"saving for no extra survey effort ({impact['uplift']:.1f} times the saving for "
+                "the same number of surveys)."
             )
             fm.add(p_impact,
-                "Savings are the register's own current-minus-potential figures and assume the full "
-                "recommended package is installed, so they are an upper bound on what the ranking "
-                "buys, not a forecast of delivered savings."
-            )
-            p_impact.add_run(
-                f" That is {impact['uplift']:.1f} times the annual saving for the same number "
-                f"of surveys."
+                f"Surveying {impact['surveyed']:,} homes (10% of eligible stock), model ranking "
+                f"finds {impact['model_hits']:,} genuine cases against {impact['band_hits']:,} for "
+                f"band-only screening: roughly GBP {impact['model_cost']/1e6:.1f}m a year in "
+                f"heating costs against GBP {impact['band_cost']/1e6:.1f}m, and "
+                f"{impact['model_co2']/1000:.1f} kilotonnes of CO2 against "
+                f"{impact['band_co2']/1000:.1f}. Savings are the register's own current-minus-"
+                "potential figures and assume the full recommended package is installed, so they "
+                "are an upper bound on what the ranking buys, not a forecast of delivered savings."
             )
         else:
             p_impact.add_run(
@@ -1484,15 +1486,19 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "features and are harder to defend in plain language."
         )
     if safe:
-        doc.add_paragraph(
-            "XGBoost led under nested cross-validation, 0.9873 ROC-AUC against Random Forest's "
-            "0.9858, then lost on the held-out years, 0.9694 against 0.9705. That fits why "
-            "Random Forest was the main model: bagging "
-            "trades training-set fit for lower variance (Breiman, 2001), which held on data "
-            "XGBoost had never seen. Consistent with the mechanism, not proven. The temporal "
-            "shift (21.7% to 10.8% positive) means future stock has fewer high-retrofit "
-            "candidates; ranking still holds, but recalibrate annually against Fig. 8 with a "
-            "recall bias."
+        p_xgb = doc.add_paragraph()
+        p_xgb.add_run(
+            "XGBoost led narrowly under nested cross-validation, then lost narrowly on the "
+            "held-out years. That fits why Random Forest was the main model: bagging trades "
+            "training-set fit for lower variance (Breiman, 2001), which held on data XGBoost "
+            "had never seen. Consistent with the mechanism, not proven. The temporal shift means "
+            "future stock has proportionally fewer high-retrofit candidates; ranking still "
+            "holds, but recalibrate annually against Fig. 8 with a recall bias."
+        )
+        fm.add(p_xgb,
+            "Nested-CV ROC-AUC 0.9873 (XGBoost) against 0.9858 (Random Forest); held-out "
+            "2025-2026 test ROC-AUC 0.9694 against 0.9705. Positive rate falls from 21.7% to "
+            "10.8% across the temporal split."
         )
     else:
         doc.add_paragraph(
