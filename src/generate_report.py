@@ -42,7 +42,6 @@ FIGURES_DIR = "report/figures"
 
 os.makedirs("report", exist_ok=True)
 
-# ----------------------------------------------------------------------
 # Real Word footnotes/endnotes. python-docx has no built-in API for either,
 # so this builds the word/footnotes.xml or word/endnotes.xml part by hand
 # (separator + continuation separator entries are required by the OOXML
@@ -61,7 +60,6 @@ os.makedirs("report", exist_ok=True)
 # column layout at all, structurally avoiding the whole bug category rather
 # than patching around it. Single-column mode keeps footnotes (confirmed
 # to render correctly there, no column to spill across).
-# ----------------------------------------------------------------------
 FOOTNOTES_CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
 FOOTNOTES_REL_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
 ENDNOTES_CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"
@@ -167,7 +165,6 @@ class FootnoteManager:
         return note_id
 
 
-# ----------------------------------------------------------------------
 # Two-column (IEEE-style) layout support. Body text runs in two columns;
 # figures and tables break out to a single full-width column for that one
 # section (standard practice, a 6-column results table or a wide heatmap
@@ -175,7 +172,6 @@ class FootnoteManager:
 # two columns for the next paragraph. Section breaks in OOXML store a
 # section's properties in the paragraph that CLOSES it, not the one that
 # opens it, so switch_columns() always describes the section ending there.
-# ----------------------------------------------------------------------
 def set_section_columns(section, num_cols, space_twips=720):
     sectPr = section._sectPr
     cols = sectPr.find(qn('w:cols'))
@@ -592,9 +588,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     else:
         bristol_context_str = ""
 
-    # ------------------------------------------------------------------
     # IEEE-style header
-    # ------------------------------------------------------------------
     title = doc.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = title.add_run("Predicting Retrofit Potential in UK Residential Buildings:\nA Machine Learning Classification Approach")
@@ -613,9 +607,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
 
     doc.add_paragraph()
 
-    # ------------------------------------------------------------------
     # Abstract
-    # ------------------------------------------------------------------
     doc.add_heading("Abstract", level=2)
     winner_sentence = (
         f"{winners['best_auc_model']} achieves the highest test-set ROC-AUC of the models compared."
@@ -672,9 +664,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         switch_columns(doc, 2)
         disable_heading_widow_control(doc)
 
-    # ------------------------------------------------------------------
     # 1. Introduction
-    # ------------------------------------------------------------------
     doc.add_heading("1. Introduction", level=1)
     p_intro1 = doc.add_paragraph()
     if safe:
@@ -713,9 +703,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "time-held-out test set, the deployment condition."
     )
 
-    # ------------------------------------------------------------------
     # 3. Problem Definition
-    # ------------------------------------------------------------------
     doc.add_heading("2. Problem Definition", level=1)
     doc.add_paragraph(
         "This is a multivariate supervised binary classification problem. Features are numerical "
@@ -732,9 +720,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "encode the potential score."
     )
 
-    # ------------------------------------------------------------------
     # 2. Dataset
-    # ------------------------------------------------------------------
     doc.add_heading("3. Dataset", level=1)
     doc.add_paragraph(
         "The dataset is the UK EPC Open Data (MHCLG, 2024): roughly 10.8 million domestic "
@@ -775,9 +761,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         two_column=two_column, dense=True
     )
 
-    # ------------------------------------------------------------------
     # 2.1 Exploratory Data Analysis (C1)
-    # ------------------------------------------------------------------
     doc.add_heading("3.1 Exploratory Data Analysis", level=2)
     if safe:
         p_eda1 = doc.add_paragraph()
@@ -876,9 +860,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             width=5.5, two_column=two_column, dense=False
         )
 
-    # ------------------------------------------------------------------
     # 4. Algorithm Selection and Methodology
-    # ------------------------------------------------------------------
     doc.add_heading("4. Algorithm Selection and Methodology", level=1)
     if safe:
         doc.add_paragraph(
@@ -1002,9 +984,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "2025-2026 temporal holdout, never seen in training or tuning."
         )
 
-    # ------------------------------------------------------------------
     # 5. Results
-    # ------------------------------------------------------------------
     doc.add_heading("5. Results", level=1)
     doc.add_heading("5.1 Model Comparison", level=2)
     doc.add_paragraph(
@@ -1263,9 +1243,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         two_column=two_column, dense=False
     )
 
-    # ------------------------------------------------------------------
     # 5.6 Who the model works for
-    # ------------------------------------------------------------------
     if fairness_rows:
         doc.add_heading("5.6 Performance by Property Type and Tenure", level=2)
         by_type = {r['group']: r for r in fairness_rows if r['dimension'] == 'Property type'}
@@ -1298,9 +1276,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"reported here."
             )
 
-    # ------------------------------------------------------------------
     # 7. Real-World Application: A Bristol Case Study
-    # ------------------------------------------------------------------
     doc.add_heading("6. Real-World Application: A Bristol Case Study", level=1)
     if bristol_rows and bristol_summary:
         n = bristol_summary['n_bristol_test_properties']
@@ -1425,9 +1401,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "from the held-out test set, then re-generate this report.]"
         )
 
-    # ------------------------------------------------------------------
     # 6. Discussion
-    # ------------------------------------------------------------------
     doc.add_heading("7. Discussion", level=1)
     if winners:
         lead_model = winners['best_auc_model']
@@ -1580,9 +1554,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         lp = doc.add_paragraph(style='List Number')
         lp.add_run(item)
 
-    # ------------------------------------------------------------------
     # 9. Future Work
-    # ------------------------------------------------------------------
     doc.add_heading("9. Future Work", level=1)
     if safe:
         doc.add_paragraph(
@@ -1609,9 +1581,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "flagged in the limitations."
         )
 
-    # ------------------------------------------------------------------
     # 10. Ethical Considerations
-    # ------------------------------------------------------------------
     doc.add_heading("10. Ethical Considerations", level=1)
     if safe:
         p_eth = doc.add_paragraph()
@@ -1649,9 +1619,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "taken on trust."
         )
 
-    # ------------------------------------------------------------------
     # 8. Conclusion
-    # ------------------------------------------------------------------
     doc.add_heading("11. Conclusion", level=1)
     if winners:
         if safe:
@@ -1686,9 +1654,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "not the last word."
         )
 
-    # ------------------------------------------------------------------
     # References. UWE Harvard, alphabetical by first author surname.
-    # ------------------------------------------------------------------
     doc.add_heading("References", level=1)
 
     add_reference(doc,

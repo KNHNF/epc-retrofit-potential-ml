@@ -99,9 +99,7 @@ R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PIC_URI = "http://schemas.openxmlformats.org/drawingml/2006/picture"
 
 
-# ----------------------------------------------------------------------
 # Page setup
-# ----------------------------------------------------------------------
 
 def set_page_a4(doc, margin_in=1.0):
     """python-docx's Document() defaults to US Letter. UK university
@@ -176,9 +174,7 @@ def disable_heading_widow_control(doc, style_names=("Heading 1", "Heading 2", "H
                 pPr.remove(el)
 
 
-# ----------------------------------------------------------------------
 # Fonts: the theme-leak bug
-# ----------------------------------------------------------------------
 
 def set_style_font(style, name, size=None, color=None):
     """Set a style's font properly, not just python-docx's `style.font.name`.
@@ -235,9 +231,7 @@ def fix_doc_defaults_font(doc, name):
     _set_rfonts_explicit(rFonts, name)
 
 
-# ----------------------------------------------------------------------
 # Column switching
-# ----------------------------------------------------------------------
 
 def set_section_columns(section, num_cols, space_twips=720):
     sectPr = section._sectPr
@@ -260,9 +254,7 @@ def switch_columns(doc, num_cols):
     return section
 
 
-# ----------------------------------------------------------------------
 # Floating (page-anchored) pictures: the whitespace fix
-# ----------------------------------------------------------------------
 
 _next_rel_height = [1]
 
@@ -466,9 +458,7 @@ def _thin_border_line(color_hex="000000", width_emu=9525):
     return ln
 
 
-# ----------------------------------------------------------------------
 # Equations
-# ----------------------------------------------------------------------
 
 def latex_to_omml(latex, xsl_path=MML2OMML_XSL_PATH):
     """LaTeX -> MathML (latex2mathml) -> OMML (Microsoft's own XSLT,
