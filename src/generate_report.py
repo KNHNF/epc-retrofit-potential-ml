@@ -694,16 +694,15 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "efficiency on an A-G scale, issued whenever a home is built, sold, or rented out."
         )
     abs_text.add_run(
-        " data predicts a property's current rating (A-G). I predict something more "
-        "useful for that aiming problem: retrofit headroom, whether a home rated D-G scores at "
+        " data predicts a property's current rating (A-G). I predict something more useful: "
+        "retrofit headroom, whether a home rated D-G scores at "
         "least 20 points below what it would reach if the assessor's recommended work were done "
         "(the potential score, on the same 1-100 scale). The rating alone is a "
         "poor filter, since 89.2% of D-G homes do not clear that gap."
-        + (f" Ranking a survey shortlist by predicted headroom instead of by rating reaches "
-           f"{impact['model_hits']:,} genuine cases against {impact['band_hits']:,} for the same "
-           f"number of visits, worth about GBP {impact['model_cost']/1e6:.1f}m a year in heating "
-           f"costs against GBP {impact['band_cost']/1e6:.1f}m, and {impact['model_co2']/1000:.1f} "
-           f"against {impact['band_co2']/1000:.1f} kilotonnes of CO2." if impact else "")
+        + (f" Ranking a survey shortlist by predicted headroom instead of by rating finds "
+           f"{impact['uplift']:.1f} times as many genuine cases for the same number of visits, "
+           f"worth roughly GBP {(impact['model_cost'] - impact['band_cost'])/1e6:.1f}m more a "
+           f"year in heating costs alone." if impact else "")
         + " I compare four classifiers under nested cross-validation on 200,000 records from 2020 "
         "to 2024, then test them on held-out 2025 to 2026 data. "
         f"{winner_sentence} "
@@ -770,7 +769,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     )
     doc.add_paragraph(
         "Four algorithms compete (Section 4), judged by nested cross-validation and a "
-        "time-held-out test set, the deployment condition."
+        "time-held-out test set: trained on the past, tested on the future, as it would "
+        "actually be used."
     )
 
     # 3. Problem Definition
@@ -1133,8 +1133,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_res.add_run(
             result_sentence.rstrip()
             + boot_sentence
-            + " Every model clears the no-skill baseline (ROC-AUC 0.5; PR-AUC equal to "
-            "prevalence). The CV-to-test drop shows up for all four and traces back to the "
+            + " Every model clears the no-skill baseline (ROC-AUC 0.5; PR-AUC equal to the "
+            "positive rate). The CV-to-test drop shows up for all four and traces back to the "
             "temporal shift from Section 3: test years hold fewer high-headroom homes, so the "
             "task is harder there."
         )
@@ -1560,9 +1560,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 "20-point threshold."
             )
         doc.add_paragraph(
-            "Choosing between the tree models turns on interpretability more than the score gap: "
-            "Random Forest importances are easy to explain; XGBoost gain scores favour "
-            "high-cardinality columns."
+            "Choosing between the tree models comes down to how easy the result is to explain, "
+            "more than the small score gap: Random Forest's importances are easy to explain; "
+            "XGBoost's favour columns with many different values, harder to justify in plain "
+            "language."
         )
     else:
         doc.add_paragraph(
@@ -1648,7 +1649,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Data quality. The true EPC error rate is estimated at 36-62% once assessor "
             "disagreement is accounted for (Hardy and Glew, 2019), which affects the wall-type feature, "
             "engineered from the same unreliable free-text description fields.",
-            "Target simplification. The binary target collapses heterogeneous properties: a "
+            "Target simplification. The binary target lumps very different properties together: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
             "Sample size. This uses 200,000 of 7.25 million eligible records; full-data training "
             "may improve recall on the minority class.",
