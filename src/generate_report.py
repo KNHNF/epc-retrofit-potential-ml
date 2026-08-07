@@ -1324,8 +1324,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"the metric that actually matters here, and it holds up on this unseen city: the "
                 f"model flags a real majority of Bristol's genuine high-potential properties, "
                 f"against none for that guessing baseline. Bristol's true positive rate is "
-                f"significantly lower than the rest of the test set (z-test, p={p_value:.3f}), "
-                f"which reads as a real feature of Bristol's housing stock, not a model artefact."
+                f"significantly lower than the rest of the test set (z-test, p={p_value:.3f}). I "
+                f"take that as a real feature of Bristol's housing stock, not a model artefact."
             )
             fm.add(p_bristol,
                 f"Accuracy {acc:.1%} against a {maj_base:.1%} majority-class baseline; recall "
@@ -1351,8 +1351,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"trivial baseline. Bristol's {pos_rate:.1%} positive rate "
                 f"sits {abs(gap_pts):.1f} points below the {rest_rate:.1%} rate in the rest of "
                 f"the test set, and at this sample size that gap is statistically significant "
-                f"(two-proportion z-test, p={p_value:.3f}), not noise. I read that as a real "
-                f"property of Bristol's housing stock rather than a model artefact, since the "
+                f"(two-proportion z-test, p={p_value:.3f}), not noise. I take that as a real "
+                f"feature of Bristol's housing stock rather than a model artefact, since the "
                 f"model was never trained or tuned on anything Bristol-specific, but the "
                 f"headline result here is not that the rates match exactly, it is that recall "
                 f"holds up on a city the model has never seen."
@@ -1489,11 +1489,13 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_xgb = doc.add_paragraph()
         p_xgb.add_run(
             "XGBoost led narrowly under nested cross-validation, then lost narrowly on the "
-            "held-out years. That fits why Random Forest was the main model: bagging trades "
-            "training-set fit for lower variance (Breiman, 2001), which held on data XGBoost "
-            "had never seen. Consistent with the mechanism, not proven. The temporal shift means "
-            "future stock has proportionally fewer high-retrofit candidates; ranking still "
-            "holds, but recalibrate annually against Fig. 8 with a recall bias."
+            "held-out years. This is why I picked Random Forest as the main model in the first "
+            "place: bagging trades some training-set fit for lower variance (Breiman, 2001), and "
+            "that is exactly the kind of thing that would hold up on data XGBoost had never seen. "
+            "I cannot prove that is the actual cause, only that it fits. The temporal shift also "
+            "means future stock has proportionally fewer high-retrofit candidates; ranking still "
+            "holds, but the threshold needs recalibrating annually against Fig. 8, biased toward "
+            "recall."
         )
         fm.add(p_xgb,
             "Nested-CV ROC-AUC 0.9873 (XGBoost) against 0.9858 (Random Forest); held-out "
@@ -1505,13 +1507,14 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "XGBoost led under nested cross-validation, with a mean outer-fold ROC-AUC of 0.9873 "
             "against Random Forest's 0.9858, and then lost on the held-out 2025-2026 years, "
             "0.9694 against 0.9705. "
-            "This connects back to why Random Forest was the main model in the first place, not "
-            "just the eventual winner. Bagging trades a little training-set fit for lower "
-            "variance (Breiman, 2001), which is exactly what would let it hold up better on a test period "
-            "XGBoost's extra flexibility had never seen. I read the CV-to-test gap as consistent "
-            "with that mechanism, not proof of it: nothing in this report isolates variance from "
-            "the other ways the two algorithms differ, so it stays an untested explanation, "
-            "argued from the same bias-variance logic that motivated the model choice in Section 4."
+            "This is why Random Forest was the main model in the first place, not just the "
+            "eventual winner. Bagging trades a little training-set fit for lower variance "
+            "(Breiman, 2001), and that is exactly what would let it hold up better on a test "
+            "period XGBoost's extra flexibility had never seen. I cannot prove that is actually "
+            "what happened here, nothing in this report isolates variance from the other ways "
+            "the two algorithms differ, so the CV-to-test gap is consistent with that "
+            "explanation rather than proof of it, argued from the same bias-variance logic that "
+            "motivated the model choice in Section 4."
         )
         doc.add_paragraph(
             "The positive rate drops from 21.7% to 10.8% across the temporal split, and that "
