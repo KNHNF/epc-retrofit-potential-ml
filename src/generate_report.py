@@ -775,12 +775,17 @@ def build_report(mode="full", two_column=False, name_tag=""):
 
     # 3. Problem Definition
     doc.add_heading("2. Problem Definition", level=1)
-    doc.add_paragraph(
+    p_prob = doc.add_paragraph()
+    p_prob.add_run(
         "This is a multivariate supervised binary classification problem. Features are numerical "
         "(efficiency score, floor area, CO2 per floor area, heating and hot-water costs, room "
-        "counts), ordinal (rating A=6 to G=0; component ratings Very Good=5 to N/A=0), and "
-        "nominal (property type, built form, wall type, tenure, mains gas). All are observable "
-        "at assessment time and none derive from the target."
+        "counts), ordinal (energy rating and component ratings, encoded so higher is better), "
+        "and nominal (property type, built form, wall type, tenure, mains gas). All are "
+        "observable at assessment time and none derive from the target."
+    )
+    fm.add(p_prob,
+        "Ordinal encoding: rating A=6 to G=0; component ratings (walls, roof, windows, etc.) "
+        "Very Good=5 to N/A=0."
     )
     doc.add_paragraph(
         "Potential energy efficiency and potential rating are excluded (target leakage): the "
@@ -979,14 +984,18 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "(Beyer et al., 1999), and this has 51. That assumes continuous measurements and over "
             "half of mine are yes/no, so it is a reason to skip kNN, not proof it would fail."
         )
-        doc.add_paragraph(
+        p_cv = doc.add_paragraph()
+        p_cv.add_run(
             "All models weight classes inversely to frequency. I report F1-macro and ROC-AUC, not "
             "accuracy: majority guessing scores 78.3% free. Nested cross-validation (5-fold "
             "outer, 3-fold inner) keeps the folds that pick settings separate from those that "
-            "report the score (Varma and Simon, 2006), settling on C=10 for Logistic Regression, "
-            "30% of features per split for Random Forest, and depth 6 at learning rate 0.1 for "
-            "XGBoost. Final numbers use the 2025-2026 holdout, in Python with scikit-learn "
+            "report the score (Varma and Simon, 2006), tuning each model's own settings on the "
+            "inner loop. Final numbers use the 2025-2026 holdout, in Python with scikit-learn "
             "(Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016)."
+        )
+        fm.add(p_cv,
+            "Chosen settings: C=10 for Logistic Regression, 30% of features per split for "
+            "Random Forest, depth 6 at learning rate 0.1 for XGBoost."
         )
     else:
         p_impl = doc.add_paragraph()
@@ -1116,10 +1125,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     boot_sentence = ""
     if boot:
         boot_sentence = (
-            f" The margin over {boot['second_model']} is only {boot['gap']:.4f} ROC-AUC, so I "
-            f"resampled the test set {boot['n_resamples']:,} times: it holds in "
-            f"{boot['share_ahead']:.0%} of them (95% interval {boot['gap_ci_low']:+.4f} to "
-            f"{boot['gap_ci_high']:+.4f}), so it is not one lucky sample."
+            f" The margin over {boot['second_model']} is narrow, so I bootstrap-resampled the "
+            "test set to check it, and it holds up, not one lucky sample."
         )
     p_res = doc.add_paragraph()
     if safe:
@@ -1131,6 +1138,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "temporal shift from Section 3: test years hold fewer high-headroom homes, so the "
             "task is harder there."
         )
+        if boot:
+            fm.add(p_res,
+                f"Margin {boot['gap']:.4f} ROC-AUC over {boot['second_model']}. "
+                f"{boot['n_resamples']:,} resamples, ahead in {boot['share_ahead']:.0%} of "
+                f"them (95% interval {boot['gap_ci_low']:+.4f} to {boot['gap_ci_high']:+.4f})."
+            )
     else:
         p_res.add_run(
             "Every model clears the no-skill baseline comfortably (ROC-AUC 0.5, PR-AUC equal to the "
@@ -1147,8 +1160,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_pr.add_run(
             "Precision sits below recall for every model, which is the shape of the problem rather "
             "than a fault: guessing the majority class scores 89.2% free at a 10.8% positive "
-            "rate, so recall does the real work. Fig. 5 shows the errors: 733 missed homes "
-            "against 3,281 false flags, the asymmetry Section 10 accepts. The curves sit close "
+            "rate, so recall does the real work. Fig. 5 shows the errors, more false flags than "
+            "misses, the asymmetry Section 10 accepts. The curves sit close "
             "together (Fig. 6), separating only as recall approaches 1.0."
         )
     else:
@@ -1334,16 +1347,17 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"That is a threshold problem, not a model problem. Equalising recall across groups with "
                 f"a per-group threshold is the equality-of-opportunity criterion (Hardt, Price "
                 f"and Srebro, 2016). Dropping the flat threshold to "
-                f"{flat_fix['chosen_threshold']} lifts recall from "
-                f"{flat_fix['flat_recall_before']} to {flat_fix['flat_recall_after']}, level "
-                f"with houses, costing precision {flat_fix['flat_precision_before']} to "
-                f"{flat_fix['flat_precision_after']}. F1 rises too, "
-                f"{flat_fix['flat_f1_before']} to {flat_fix['flat_f1_after']}."
+                f"{flat_fix['chosen_threshold']} lifts recall to "
+                f"{flat_fix['flat_recall_after']}, level with houses, at a fair precision cost, "
+                f"F1 rises overall."
             )
             fm.add(p_fix,
-                f"Threshold picked on one random half of the flats and scored on the other "
-                f"({flat_fix['n_holdout']:,} held out), so the gain is not fitted to the numbers "
-                f"reported here."
+                f"Recall {flat_fix['flat_recall_before']} to {flat_fix['flat_recall_after']}; "
+                f"precision {flat_fix['flat_precision_before']} to "
+                f"{flat_fix['flat_precision_after']}; F1 {flat_fix['flat_f1_before']} to "
+                f"{flat_fix['flat_f1_after']}. Threshold picked on one random half of the flats "
+                f"and scored on the other ({flat_fix['n_holdout']:,} held out), so the gain is "
+                f"not fitted to the numbers reported here."
             )
 
     # 7. Real-World Application: A Bristol Case Study
@@ -1712,7 +1726,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         p_eth = doc.add_paragraph()
         p_eth.add_run(
-            "Published under the Open Government Licence with no directly identifying data. EPC "
+            "This project uses only secondary, open government data, with no human "
+            "participants and no primary data collection, so no UWE ethics approval was "
+            "required. Published under the Open Government Licence with no directly "
+            "identifying data. EPC "
             "records are property-addressable, so linkage with other datasets could re-identify "
             "a dwelling; no such linkage is performed. A false negative deprioritises a property "
             "that genuinely needs intervention; a false positive only wastes assessor time. That "
