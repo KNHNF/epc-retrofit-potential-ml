@@ -700,7 +700,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "(the potential score, on the same 1-100 scale). The rating alone is a "
         "poor filter, since 89.2% of D-G homes do not clear that gap."
         + (f" Ranking a survey shortlist by predicted headroom instead of by rating finds "
-           f"{impact['uplift']:.1f} times as many genuine cases for the same number of visits, "
+           f"{impact['uplift']:.1f} times as many correct hits for the same number of visits, "
            f"worth roughly GBP {(impact['model_cost'] - impact['band_cost'])/1e6:.1f}m more a "
            f"year in heating costs alone." if impact else "")
         + " I compare four classifiers under nested cross-validation on 200,000 records from 2020 "
@@ -1382,7 +1382,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"physical characteristics alone. Accuracy alone overstates this, since always "
                 f"guessing \"not high potential\" scores almost as well by construction. Recall is "
                 f"the metric that actually matters here, and it holds up on this unseen city: the "
-                f"model flags a real majority of Bristol's genuine high-potential properties, "
+                f"model flags a real majority of Bristol's true high-potential properties, "
                 f"against none for that guessing baseline. Bristol's true positive rate is "
                 f"significantly lower than the rest of the test set (z-test, p={p_value:.3f}). I "
                 f"take that as a real feature of Bristol's housing stock, not a model artefact."
@@ -1490,7 +1490,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_cities.add_run(
             "One city is not proof this generalises, so I ran the same held-out check on "
             "Manchester and Leeds, both denser and more terraced than Bristol (Table 3). "
-            "Recall holds up on all three, the model still finds most genuine high-potential "
+            "Recall holds up on all three, the model still finds most of the real high-potential "
             "homes even where the local housing stock looks nothing like Bristol's. Precision "
             "is more mixed, weaker in Manchester, where high-potential homes are rarer still "
             "than the rest of the test set. The model was never trained or tuned on any of "
@@ -1538,10 +1538,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
             p_impact.add_run(
                 "Is rating-band screening enough? Not really. 89.2% of D-G homes miss the "
                 "threshold, so a band-only shortlist is mostly noise. Ranking the same survey "
-                "budget by model score instead finds several times more genuine retrofit "
-                "candidates, translating into several times the annual heating-cost and CO2 "
-                f"saving for no extra survey effort ({impact['uplift']:.1f} times the saving for "
-                "the same number of surveys)."
+                f"budget by model score instead finds {impact['uplift']:.1f} times as many real "
+                "retrofit candidates, and the same multiple in annual heating-cost and CO2 "
+                "saving, for no extra survey effort."
             )
             fm.add(p_impact,
                 f"Surveying {impact['surveyed']:,} homes (10% of eligible stock), model ranking "
@@ -1775,8 +1774,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_conc = doc.add_paragraph()
         p_conc.add_run(
             f"{conclusion_lead} is the strongest of the four for identifying "
-            "high-retrofit-potential UK properties from EPC open data. Section 6 held recall on "
-            "17,165 Bristol properties it had never seen, with no location input. Current "
+            "high-retrofit-potential UK properties from EPC open data. Recall held up on three "
+            "unseen cities with different housing stock (Section 6) and across five years of "
+            "walk-forward testing (Section 7), with no location input at all. Current "
             "efficiency, current rating, property type, and wall type drive the predictions, and "
             "all are physically interpretable. The caveats in Section 8 mean this is a credible "
             "estimate, not a final one."
@@ -1785,8 +1785,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
         doc.add_paragraph(
             "I built this pipeline to predict retrofit headroom in UK homes from EPC data, not the "
             f"current energy rating most prior work predicts. {conclusion_lead} Section 6 pushed "
-            "past the benchmark numbers and pointed the trained model at 17,165 real Bristol "
-            "properties it had never seen, with no location input at all, and recall held up. "
+            "past the benchmark numbers and pointed the trained model at real properties in "
+            "three cities it had never seen, Bristol, Manchester, and Leeds, with no location "
+            "input at all, and recall held up on all three; Section 7 pushed further still, "
+            "walking the training window forward across five years with the same result. "
             "Current efficiency score, current rating, property type, and wall type drive the "
             "predictions, and all four line up with what retrofit policy already assumes. None of "
             "this is final: EPC data-quality problems and a 200,000-record sample rather than the "
