@@ -315,6 +315,22 @@ def load_walk_forward():
     return rows
 
 
+def load_city_case_studies():
+    path = f"{DATA_DIR}/city_case_studies_summary.csv"
+    if not os.path.exists(path):
+        return None
+    rows = []
+    with open(path, newline='') as f:
+        for row in csv.DictReader(f):
+            row['n_test_properties'] = int(row['n_test_properties'])
+            for k in ('positive_rate', 'accuracy', 'majority_baseline_accuracy',
+                      'precision', 'recall', 'f1', 'rest_of_test_positive_rate',
+                      'positive_rate_gap_pts', 'positive_rate_pvalue'):
+                row[k] = float(row[k])
+            rows.append(row)
+    return rows
+
+
 def load_bristol_case():
     path = f"{DATA_DIR}/bristol_case_study.csv"
     summary_path = f"{DATA_DIR}/bristol_case_study_summary.csv"
@@ -368,6 +384,44 @@ def add_bristol_table(doc, rows):
             cell.text = str(val)
             if mismatch:
                 shade_cell(cell, 'F5DCDC')
+            for para in cell.paragraphs:
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for run in para.runs:
+                    run.font.size = Pt(10)
+                    run.font.name = 'Times New Roman'
+    return table
+
+
+def add_cities_table(doc, rows):
+    display_cols = [
+        ('city', 'City'), ('n_test_properties', 'n'),
+        ('positive_rate', 'Positive rate'), ('recall', 'Recall'),
+        ('precision', 'Precision'), ('f1', 'F1'),
+    ]
+    headers = [h for _, h in display_cols]
+    table = doc.add_table(rows=len(rows) + 1, cols=len(headers))
+    table.style = 'Table Grid'
+    table.autofit = True
+    for j, h in enumerate(headers):
+        cell = table.cell(0, j)
+        cell.text = h
+        shade_cell(cell, '2F2F2F')
+        for para in cell.paragraphs:
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in para.runs:
+                run.bold = True
+                run.font.size = Pt(10)
+                run.font.name = 'Times New Roman'
+                run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+    for i, row in enumerate(rows):
+        for j, (key, _) in enumerate(display_cols):
+            val = row[key]
+            if key == 'n_test_properties':
+                val = f"{int(val):,}"
+            elif key in ('positive_rate', 'recall', 'precision', 'f1'):
+                val = f"{float(val):.2f}"
+            cell = table.cell(i + 1, j)
+            cell.text = str(val)
             for para in cell.paragraphs:
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 for run in para.runs:
@@ -587,6 +641,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     comparison_rows = load_comparison_csv()
     winners = determine_winners(comparison_rows)
     bristol_rows, bristol_summary = load_bristol_case()
+    city_rows = load_city_case_studies()
     boot = load_bootstrap_gap()
     impact = load_impact()
     fairness_rows = load_fairness()
@@ -1415,6 +1470,37 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "[CASE STUDY: run src/bristol_case_study.py to generate real Bristol predictions "
             "from the held-out test set, then re-generate this report.]"
         )
+
+    if city_rows:
+        p_cities = doc.add_paragraph()
+        p_cities.add_run(
+            "One city is not proof this generalises, so I ran the same held-out check on "
+            "Manchester and Leeds, both denser and more terraced than Bristol (Table 3). "
+            "Recall holds up on all three, the model still finds most genuine high-potential "
+            "homes even where the local housing stock looks nothing like Bristol's. Precision "
+            "is more mixed, weaker in Manchester, where high-potential homes are rarer still "
+            "than the rest of the test set. The model was never trained or tuned on any of "
+            "these three cities specifically, so this is the same held-out test everywhere, "
+            "just sliced by place."
+        )
+        cap_cities = doc.add_paragraph()
+        cap_cities.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        cap_cities.paragraph_format.space_before = Pt(10)
+        cap_cities.paragraph_format.space_after = Pt(4)
+        cap_cities.paragraph_format.keep_with_next = True
+        cap_cities.paragraph_format.keep_together = True
+        cap_run = cap_cities.add_run(
+            "Table 3. Held-out test-set performance by city."
+        )
+        cap_run.italic = True
+        cap_run.font.size = Pt(10)
+        cap_run.font.name = 'Times New Roman'
+        cities_img = f"{FIGURES_DIR}/table3_cities.png"
+        if two_column and os.path.exists(cities_img):
+            add_floating_picture(doc, cities_img, " ")
+        else:
+            add_cities_table(doc, city_rows)
+        doc.add_paragraph()
 
     # 6. Discussion
     doc.add_heading("7. Discussion", level=1)

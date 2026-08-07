@@ -154,6 +154,42 @@ def render_bristol_table():
     print(f"Saved {FIGURES_DIR}/table2_bristol.png")
 
 
+def render_cities_table():
+    rows = _read_csv(f"{DATA_DIR}/city_case_studies_summary.csv")
+    if not rows:
+        return
+    headers = ["City", "n", "Positive rate", "Recall", "Precision", "F1"]
+    cell_text = []
+    for r in rows:
+        cell_text.append([
+            r["city"], f"{int(float(r['n_test_properties'])):,}",
+            f"{float(r['positive_rate']):.2f}", f"{float(r['recall']):.2f}",
+            f"{float(r['precision']):.2f}", f"{float(r['f1']):.2f}",
+        ])
+
+    n_rows = len(rows) + 1
+    fig, ax = plt.subplots(figsize=(9.5, 0.55 * n_rows))
+    ax.axis("off")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    tbl = ax.table(cellText=cell_text, colLabels=headers, cellLoc="center",
+                   loc="center", bbox=[0, 0, 1, 1])
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(11)
+
+    for (row, col), cell in tbl.get_celld().items():
+        if row == 0:
+            cell.set_facecolor(HEADER_BG)
+            cell.set_text_props(color="white", fontweight="bold")
+    _apply_booktabs_style(ax, tbl, n_rows=n_rows)
+
+    plt.tight_layout()
+    plt.savefig(f"{FIGURES_DIR}/table3_cities.png", dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved {FIGURES_DIR}/table3_cities.png")
+
+
 if __name__ == "__main__":
     render_comparison_table()
     render_bristol_table()
+    render_cities_table()
