@@ -1363,13 +1363,13 @@ def build_report(mode="full", two_column=False, name_tag=""):
         ):
             p_map = doc.add_paragraph()
             p_map.add_run(
-                "Predicted rate varies by district (Fig. 9), from BS1 (3.5%) to BS15 (21.9%); marker "
-                "position is an approximate centroid, not a real boundary."
+                "Predicted rate varies by district (Fig. 9), from BS1 (3.5%) to BS15 (21.9%)."
             )
             add_figure(doc,
                 f"{FIGURES_DIR}/07_bristol_district_map.png",
                 "Fig. 9. Predicted retrofit-potential rate by Bristol postcode district, test "
-                "set; marker area scales with the number of test-set properties in that district.",
+                "set, shown by real district boundary; label gives the number of test-set "
+                "properties in that district.",
                 two_column=two_column, dense=True
             )
         cap_bristol = doc.add_paragraph()
