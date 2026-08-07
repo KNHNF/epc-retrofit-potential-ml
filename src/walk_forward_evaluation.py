@@ -6,18 +6,23 @@ year after year or slowly gets worse. This script checks that: it moves the
 training window forward one year at a time and always tests on the year
 right after it, five folds in total.
 
-It reuses the hyperparameters already picked in 04_Random_Forest.ipynb
-(n_estimators=300, max_features=0.3, min_samples_leaf=1) rather than
-re-running the nested cross-validation search inside every fold, that
-would take hours for a check that is really about temporal stability of
-the model already chosen, not about picking a new one.
+By default this reuses the hyperparameters already picked in
+04_Random_Forest.ipynb (n_estimators=300, max_features=0.3,
+min_samples_leaf=1) rather than re-running the nested cross-validation
+search inside every fold, that took far too long on the machine this was
+first written on. Set TUNE_PER_FOLD = True below to do the real thing, a
+small grid search inside every fold, on a machine that can actually afford
+it (Kaggle or Colab, not a throttled sandbox). TRAIN_SAMPLE_SIZE and
+TEST_SAMPLE_SIZE are also just module constants, bump them the same way.
 
-The full 7.25M-row training parquet does not fit in memory here as a
-whole pandas frame, so each year is pulled straight from the parquet file
-with a row-group filter (pyarrow prunes anything outside the date range
-before it ever becomes a DataFrame), then sampled down immediately.
-Sampling per year rather than after concatenating keeps memory bounded
-no matter how many years a fold covers.
+The full 7.25M-row training parquet does not fit in memory as a whole
+pandas frame on a constrained machine, so each year is pulled straight
+from the parquet file with a row-group filter (pyarrow prunes anything
+outside the date range before it ever becomes a DataFrame), then sampled
+down immediately. Sampling per year rather than after concatenating keeps
+memory bounded no matter how many years a fold covers. On Kaggle or Colab
+this is not strictly necessary, RAM there can usually just hold the full
+file, but there is no downside to leaving it as is.
 
 Usage: python src/walk_forward_evaluation.py
 """
@@ -30,6 +35,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OrdinalEncoder, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.metrics import f1_score, roc_auc_score, average_precision_score, recall_score
 
 from preprocessing import extract_wall_type
@@ -41,6 +47,11 @@ TEST_FULL = f"{DATA_DIR}/epc_test_full.parquet"    # 2025-2026
 TRAIN_SAMPLE_SIZE = 200_000  # matches the main pipeline's sample size
 TEST_SAMPLE_SIZE = 50_000
 SEED = 42
+
+# False: reuse the main model's settings (fast, what this ran with by default).
+# True: a real 3-fold grid search inside every walk-forward fold, same grid as
+# 04_Random_Forest.ipynb. Only turn this on somewhere with real CPU headroom.
+TUNE_PER_FOLD = False
 
 NUMERIC_COLS = [
     'CURRENT_ENERGY_EFFICIENCY', 'TOTAL_FLOOR_AREA',
@@ -160,10 +171,29 @@ def run_fold(train_years, test_year):
     y_train = train['RETROFIT_POTENTIAL'].values
     y_test = test['RETROFIT_POTENTIAL'].values
 
-    rf = RandomForestClassifier(
-        n_estimators=300, max_features=0.3, min_samples_leaf=1,
-        class_weight='balanced', n_jobs=-1, random_state=SEED,
-    )
+    if TUNE_PER_FOLD:
+        param_grid = {
+            'n_estimators': [200],
+            'max_features': ['sqrt', 0.3],
+            'min_samples_leaf': [1, 5],
+        }
+        search = GridSearchCV(
+            RandomForestClassifier(class_weight='balanced', random_state=SEED),
+            param_grid, cv=StratifiedKFold(n_splits=3, shuffle=True, random_state=SEED),
+            scoring='f1_macro', n_jobs=-1,
+        )
+        search.fit(X_train, y_train)
+        rf = RandomForestClassifier(
+            n_estimators=300, class_weight='balanced', n_jobs=-1, random_state=SEED,
+            max_features=search.best_params_['max_features'],
+            min_samples_leaf=search.best_params_['min_samples_leaf'],
+        )
+        print(f"  tuned: {search.best_params_}")
+    else:
+        rf = RandomForestClassifier(
+            n_estimators=300, max_features=0.3, min_samples_leaf=1,
+            class_weight='balanced', n_jobs=-1, random_state=SEED,
+        )
     rf.fit(X_train, y_train)
     proba = rf.predict_proba(X_test)[:, 1]
     pred = (proba >= 0.5).astype(int)
@@ -173,6 +203,7 @@ def run_fold(train_years, test_year):
         'test_year': test_year,
         'n_train': len(train),
         'n_test': len(test),
+        'tuned_per_fold': TUNE_PER_FOLD,
         'train_positive_rate': y_train.mean(),
         'test_positive_rate': y_test.mean(),
         'test_roc_auc': roc_auc_score(y_test, proba),
