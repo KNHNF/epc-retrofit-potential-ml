@@ -1643,7 +1643,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             two_column=two_column, dense=False
         )
     doc.add_heading("8. Limitations", level=1)
-    doc.add_paragraph("There are six main limitations.")
+    doc.add_paragraph("There are five main limitations.")
     if safe:
         limitation_items = [
             "Data quality. The true EPC error rate is estimated at 36-62% once assessor "
@@ -1651,13 +1651,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "engineered from the same unreliable free-text description fields.",
             "Target simplification. The binary target lumps very different properties together: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
-            "Sample size. This uses 200,000 of 7.25 million eligible records; full-data training "
-            "may improve recall on the minority class.",
+            "Sample and time coverage. This uses 200,000 of 7.25 million eligible records, and "
+            "Section 7's walk-forward check refits on smaller samples with the main model's "
+            "existing settings rather than a fresh search each time, so it shows direction, not "
+            "a confirmed final score for every year.",
             "No location data. The model uses no geographic input, so it cannot pick up local "
             "factors like climate, fuel poverty, or regional building practice.",
-            "Temporal stability. Section 7's walk-forward check uses smaller, fixed-setting "
-            "refits, not the full nested-CV tuning behind the main result, so it shows "
-            "direction, not a confirmed final score for each year.",
             "Recall on flats. The threshold fix in Section 5.6 closes the gap but was tuned and "
             "scored on one test period; it needs confirming on a later one before deployment.",
         ]
@@ -1672,19 +1671,16 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap in a rural solid-wall property has different policy implications from "
             "the same gap in an urban flat.",
-            "Sample size. This analysis uses a sample of 200,000 records rather than the full "
-            "7.25 million training records; while sufficient for credible results, full-data "
-            "training may improve recall on the minority class.",
+            "Sample and time coverage. This analysis uses a sample of 200,000 records rather "
+            "than the full 7.25 million training records, and Section 7's walk-forward check, "
+            "while finding no decline across five years, refits on smaller samples with the "
+            "main model's existing settings rather than a fresh nested-CV search per fold, that "
+            "would take far longer to run than this project's time allowed. So both results are "
+            "evidence of direction, not a confirmed, fully-tuned final score.",
             "No location data. The model uses no geographic input at all, not even region, so it "
             "cannot pick up local factors such as climate, fuel poverty, or regional building "
             "practice. Section 6 shows this does not stop it working on a single city, but it "
             "does mean the model cannot explain why one area differs from another.",
-            "Temporal stability is only lightly checked. Section 7 walks the training window "
-            "forward five times and finds no decline, but each of those refits uses a smaller "
-            "sample and the hyperparameters already chosen for the main model, not a fresh "
-            "nested-CV search per fold, that would take far longer to run than this project's "
-            "time allowed. So it is evidence the ranking holds up over time, not a confirmed, "
-            "fully-tuned score for every year the way Table 1 is for the main split.",
             "Fairness across subgroups. All reported metrics are aggregate figures; whether the "
             "model performs equally well across property type, tenure, or region categories was "
             "not separately tested, a real gap for a tool intended to inform policy decisions that "
