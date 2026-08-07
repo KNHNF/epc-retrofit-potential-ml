@@ -301,6 +301,20 @@ def load_naive_baseline():
     return {k: (v if k == 'model' else float(v)) for k, v in row.items()}
 
 
+def load_walk_forward():
+    path = f"{DATA_DIR}/walk_forward_results.csv"
+    if not os.path.exists(path):
+        return None
+    rows = []
+    with open(path, newline='') as f:
+        for row in csv.DictReader(f):
+            row['test_year'] = int(row['test_year'])
+            for k in ('test_roc_auc', 'test_f1_macro', 'test_pr_auc', 'test_recall'):
+                row[k] = float(row[k])
+            rows.append(row)
+    return rows
+
+
 def load_bristol_case():
     path = f"{DATA_DIR}/bristol_case_study.csv"
     summary_path = f"{DATA_DIR}/bristol_case_study_summary.csv"
@@ -577,6 +591,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     impact = load_impact()
     fairness_rows = load_fairness()
     flat_fix = load_flat_threshold()
+    walk_forward = load_walk_forward()
     fm = FootnoteManager(doc, use_endnotes=two_column)
 
     if bristol_summary:
@@ -1500,6 +1515,32 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "diagrams in Fig. 8, biased toward recall rather than accuracy, rather than trust a "
             "threshold picked once at launch."
         )
+    if walk_forward:
+        first_year = walk_forward[0]['test_year']
+        last_year = walk_forward[-1]['test_year']
+        auc_range = [r['test_roc_auc'] for r in walk_forward]
+        f1_first_years = [r['test_f1_macro'] for r in walk_forward[:3]]
+        f1_last_years = [r['test_f1_macro'] for r in walk_forward[3:]]
+        p_wf = doc.add_paragraph()
+        p_wf.add_run(
+            "A single split only proves the model holds on one boundary, so I walked it "
+            f"forward too: refit on every year up to and including {first_year}, then "
+            f"{first_year + 1}, and so on to {last_year}, testing each time on the year right "
+            "after (same settings as the main model, smaller sample, so this checks "
+            f"direction rather than replacing the tuned result). ROC-AUC holds up throughout "
+            f"({min(auc_range):.3f} to {max(auc_range):.3f}, Fig. 10). F1-macro is more "
+            f"honest: around {sum(f1_first_years)/len(f1_first_years):.2f} for the first "
+            f"three years, {sum(f1_last_years)/len(f1_last_years):.2f} for the last two, the "
+            "same shrinking positive rate making the minority class harder to catch further "
+            "out. Ranking survives the walk forward; the cut-off does not, one more reason "
+            "to revisit it on a schedule rather than set it once."
+        )
+        add_figure(doc,
+            f"{FIGURES_DIR}/10_walk_forward.png",
+            "Fig. 10. Random Forest, walk-forward evaluation: test-year ROC-AUC and F1-macro "
+            "as the training window expands one year at a time.",
+            two_column=two_column, dense=False
+        )
     doc.add_heading("8. Limitations", level=1)
     doc.add_paragraph("There are six main limitations.")
     if safe:
@@ -1513,8 +1554,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "may improve recall on the minority class.",
             "No location data. The model uses no geographic input, so it cannot pick up local "
             "factors like climate, fuel poverty, or regional building practice.",
-            "Single temporal split. One 2020-2024/2025-2026 holdout, not walk-forward "
-            "retraining, so drift over time is not measured.",
+            "Temporal stability. Section 7's walk-forward check uses smaller, fixed-setting "
+            "refits, not the full nested-CV tuning behind the main result, so it shows "
+            "direction, not a confirmed final score for each year.",
             "Recall on flats. The threshold fix in Section 5.6 closes the gap but was tuned and "
             "scored on one test period; it needs confirming on a later one before deployment.",
         ]
@@ -1536,14 +1578,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "cannot pick up local factors such as climate, fuel poverty, or regional building "
             "practice. Section 6 shows this does not stop it working on a single city, but it "
             "does mean the model cannot explain why one area differs from another.",
-            "Single temporal split, not a rolling backtest. The final evaluation here uses one "
-            "static split, train on 2020-2024, test once on 2025-2026, rather than a repeated "
-            "walk-forward (expanding-window) evaluation across several successive retraining "
-            "points, which is closer to how a model actually gets re-evaluated in deployment. "
-            "Nested cross-validation avoids the optimistic bias of tuning and scoring on the same "
-            "split, but that is a different problem from this one: a single train/test split still "
-            "cannot show whether performance is stable, improving, or drifting across successive "
-            "periods, only that it holds on this one boundary.",
+            "Temporal stability is only lightly checked. Section 7 walks the training window "
+            "forward five times and finds no decline, but each of those refits uses a smaller "
+            "sample and the hyperparameters already chosen for the main model, not a fresh "
+            "nested-CV search per fold, that would take far longer to run than this project's "
+            "time allowed. So it is evidence the ranking holds up over time, not a confirmed, "
+            "fully-tuned score for every year the way Table 1 is for the main split.",
             "Fairness across subgroups. All reported metrics are aggregate figures; whether the "
             "model performs equally well across property type, tenure, or region categories was "
             "not separately tested, a real gap for a tool intended to inform policy decisions that "
@@ -1557,20 +1597,21 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("9. Future Work", level=1)
     if safe:
         doc.add_paragraph(
-            "Walk-forward retraining would show if the CV-to-test gap is a trend, and how often "
-            "to retrain. Postcode-level data (deprivation, "
-            "off-gas-grid status, scheme uptake) would let the model explain area differences "
-            "it currently cannot, making Fig. 9 something to act on. Predicting the gap as a "
-            "number rather than yes/no would allow ranking within a shortlist and drop the "
-            "arbitrary 20-point cut-off."
+            "Section 7's walk-forward check used the settings already chosen for the main "
+            "model, a full nested-CV search repeated for every fold would say more about how "
+            "often the model actually needs retuning, not just retraining. Postcode-level data "
+            "(deprivation, off-gas-grid status, scheme uptake) would let the model explain area "
+            "differences it currently cannot, making Fig. 9 something to act on. Predicting the "
+            "gap as a number rather than yes/no would allow ranking within a shortlist and drop "
+            "the arbitrary 20-point cut-off."
         )
     else:
         doc.add_paragraph(
-            "Three extensions follow directly from the limitations above. First, walk-forward "
-            "retraining across successive years, which would show whether the CV-to-test gap "
-            "discussed in Section 7 is a one-off or a trend, and would give a scheme an evidence "
-            "base for how often the model needs retraining rather than the annual guess offered "
-            "there. Second, postcode-level covariates such as deprivation indices, off-gas-grid "
+            "Three extensions follow directly from the limitations above. First, a full "
+            "nested-CV search repeated on every fold of Section 7's walk-forward check, not "
+            "just a refit with the main model's existing settings, which would say how often "
+            "the model actually needs retuning rather than only retraining. Second, "
+            "postcode-level covariates such as deprivation indices, off-gas-grid "
             "status, and local scheme uptake, which would let the model account for the area "
             "differences it currently cannot see at all, and would turn the district map in "
             "Fig. 9 into something a council could act on rather than merely observe. Third, "
