@@ -894,7 +894,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_rf = doc.add_paragraph()
         p_rf.add_run("Random Forest").bold = True
         p_rf.add_run(
-            " is the main model: averaging many trees, each grown on a random subset of rows and "
+            " is the main model. Averaging many trees, each grown on a random subset of rows and "
             "columns (bagging), cuts variance without adding bias (Breiman, 2001) and handles the "
             "correlated pairs. A single Decision Tree is skipped because it overfits (Breiman et "
             "al., 1984). For importance I shuffle one column at a time and measure the score drop, "
@@ -905,9 +905,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_xgb = doc.add_paragraph()
         p_xgb.add_run("XGBoost").bold = True
         p_xgb.add_run(
-            " is the second tree model, testing whether the Random Forest result comes from "
-            "bagging or from tree ensembles generally. It grows trees in sequence, each "
-            "correcting the last ones' errors, trading variance reduction for lower bias (Chen and Guestrin, 2016). "
+            " is the second tree model: does the Random Forest result come from bagging, or "
+            "from tree ensembles generally? It grows trees in sequence, each correcting the last "
+            "ones' errors, trading variance reduction for lower bias (Chen and Guestrin, 2016). "
             "Minority-class weighting handles the imbalance. I expected it to win; Section 7 "
             "covers why it did not."
         )
@@ -917,12 +917,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_svm.add_run(" and ")
         p_svm.add_run("kNN").bold = True
         p_svm.add_run(
-            " are reference points. SVM tests whether a widest-margin boundary beats Logistic "
-            "Regression's, its scores turned into probabilities by a fitted sigmoid (Platt "
-            "calibration) (Cortes and Vapnik, 1995). kNN was never fitted: beyond roughly 10 to "
-            "15 columns nearest and farthest neighbours end up almost equally far away (Beyer et "
-            "al., 1999), and this has 51. That assumes continuous measurements and over half of "
-            "mine are yes/no, so it is a reason to skip kNN, not proof it would fail."
+            " are reference points only. SVM tests whether a widest-margin boundary beats "
+            "Logistic Regression's, with scores turned into probabilities by a fitted sigmoid "
+            "(Platt calibration) (Cortes and Vapnik, 1995). kNN was never fitted: beyond roughly "
+            "10 to 15 columns nearest and farthest neighbours end up almost equally far away "
+            "(Beyer et al., 1999), and this has 51. That assumes continuous measurements and over "
+            "half of mine are yes/no, so it is a reason to skip kNN, not proof it would fail."
         )
         doc.add_paragraph(
             "All models weight classes inversely to frequency. I report F1-macro and ROC-AUC, not "
@@ -1076,7 +1076,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             + " Every model clears the no-skill baseline (ROC-AUC 0.5; PR-AUC equal to "
             "prevalence). The CV-to-test drop shows up for all four and traces back to the "
             "temporal shift from Section 3: test years hold fewer high-headroom homes, so the "
-            "task is harder there, matching deployment rather than a fault in the models."
+            "task is harder there."
         )
     else:
         p_res.add_run(
@@ -1248,10 +1248,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
 
     doc.add_heading("5.5 Calibration", level=2)
     doc.add_paragraph(
-        "Ranking well is not the same as being right about the odds, and a council setting a "
-        "cut-off needs the second. All four curves sit below the diagonal (Fig. 8): of 100 homes "
-        "scored at 70%, roughly 40 to 50 are genuinely high-potential. The score is safe to "
-        "rank by, not to read as a percentage."
+        "Ranking well is not the same as being right about the odds. All four curves sit below "
+        "the diagonal (Fig. 8): of 100 homes scored at 70%, roughly 40 to 50 are genuinely "
+        "high-potential. The score is safe to rank by, not to read as a percentage."
     )
     add_figure(doc,
         f"{FIGURES_DIR}/calibration_curves.png",
@@ -1271,8 +1270,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if 'Flat' in by_type and 'House' in by_type:
             fl, ho = by_type['Flat'], by_type['House']
             p_fair.add_run(
-                f"Aggregate metrics can hide a group the model serves badly, so I split recall by "
-                f"property type and tenure. Tenure is even ({min(ten):.2f} to {max(ten):.2f}); "
+                f"Tenure is even ({min(ten):.2f} to {max(ten):.2f}); "
                 f"property type is not. Recall is {float(ho['recall']):.2f} on houses but "
                 f"{float(fl['recall']):.2f} on flats. Precision on flats is higher "
                 f"({float(fl['precision']):.2f}), so the model is not wrong about them, it is too "
@@ -1290,8 +1288,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"{flat_fix['flat_recall_before']} to {flat_fix['flat_recall_after']}, level "
                 f"with houses, costing precision {flat_fix['flat_precision_before']} to "
                 f"{flat_fix['flat_precision_after']}. F1 rises too, "
-                f"{flat_fix['flat_f1_before']} to {flat_fix['flat_f1_after']}, so it is not "
-                f"just trading one metric for another."
+                f"{flat_fix['flat_f1_before']} to {flat_fix['flat_f1_after']}."
             )
             fm.add(p_fix,
                 f"Threshold picked on one random half of the flats and scored on the other "
@@ -1441,9 +1438,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_impact = doc.add_paragraph()
         if impact:
             p_impact.add_run(
-                f"Without a model, a scheme screens on rating band alone: 89.2% of D-G homes miss the "
-                f"threshold, so most of that shortlist is wasted. Surveying "
-                f"{impact['surveyed']:,} homes, 10% of eligible stock, ranking by model score reaches "
+                f"Is rating-band screening enough? Not really. 89.2% of D-G homes miss the "
+                f"threshold, so a band-only shortlist is mostly noise. Surveying "
+                f"{impact['surveyed']:,} homes, 10% of eligible stock, ranking by model score finds "
                 f"{impact['model_hits']:,} genuine cases against {impact['band_hits']:,} "
                 f"unranked. That is roughly GBP {impact['model_cost']/1e6:.1f}m a year in "
                 f"heating costs against GBP {impact['band_cost']/1e6:.1f}m, and "
@@ -1456,8 +1453,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 "buys, not a forecast of delivered savings."
             )
             p_impact.add_run(
-                f" That is {impact['uplift']:.1f} times the annual saving reached for the same "
-                f"number of surveys."
+                f" That is {impact['uplift']:.1f} times the annual saving for the same number "
+                f"of surveys."
             )
         else:
             p_impact.add_run(
@@ -1574,8 +1571,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("9. Future Work", level=1)
     if safe:
         doc.add_paragraph(
-            "Three extensions follow from the limitations. Walk-forward retraining would show if "
-            "the CV-to-test gap is a trend, and how often to retrain. Postcode-level data (deprivation, "
+            "Walk-forward retraining would show if the CV-to-test gap is a trend, and how often "
+            "to retrain. Postcode-level data (deprivation, "
             "off-gas-grid status, scheme uptake) would let the model explain area differences "
             "it currently cannot, making Fig. 9 something to act on. Predicting the gap as a "
             "number rather than yes/no would allow ranking within a shortlist and drop the "
