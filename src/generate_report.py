@@ -1106,8 +1106,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("5. Results", level=1)
     doc.add_heading("5.1 Model Comparison", level=2)
     doc.add_paragraph(
-        "Table 1 gives test-set performance. The winning row is bolded on the four metrics that "
-        "matter under this imbalance, not on accuracy."
+        "Table 1 gives test-set performance, the best value in each column bolded, whichever "
+        "model that turns out to be. Accuracy is shown for reference, but it is not the metric "
+        "that decides anything here, a model can score well on it just by favouring the "
+        "majority class (Section 4)."
     )
 
     # keep this short enough to fit one line at column width. A table caption sits
