@@ -266,6 +266,18 @@ def load_flat_threshold():
     return row
 
 
+def load_flat_threshold_temporal():
+    path = f"{DATA_DIR}/flat_threshold_temporal.csv"
+    if not os.path.exists(path):
+        return None
+    with open(path, newline='') as f:
+        row = next(csv.DictReader(f), None)
+    if row:
+        row['n_tune_2025'] = int(row['n_tune_2025'])
+        row['n_holdout_2026'] = int(row['n_holdout_2026'])
+    return row
+
+
 def load_fairness():
     path = f"{DATA_DIR}/fairness_by_group.csv"
     if not os.path.exists(path):
@@ -654,6 +666,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     impact = load_impact()
     fairness_rows = load_fairness()
     flat_fix = load_flat_threshold()
+    flat_fix_temporal = load_flat_threshold_temporal()
     walk_forward = load_walk_forward()
     fm = FootnoteManager(doc, use_endnotes=two_column)
 
@@ -1385,6 +1398,23 @@ def build_report(mode="full", two_column=False, name_tag=""):
                 f"and scored on the other ({flat_fix['n_holdout']:,} held out), so the gain is "
                 f"not fitted to the numbers reported here."
             )
+        if flat_fix_temporal:
+            p_fix_t = doc.add_paragraph()
+            p_fix_t.add_run(
+                "That split was random, both halves from the same 2025-2026 window, so it does "
+                "not show the fix survives time passing. Checked properly: threshold chosen on "
+                "2025's flats only, scored on 2026's, the genuinely later period. Recall on "
+                f"2026 flats goes from {flat_fix_temporal['flat_recall_2026_before']} to "
+                f"{flat_fix_temporal['flat_recall_2026_after']} at the same "
+                f"{flat_fix_temporal['chosen_threshold']} threshold, so the fix holds across "
+                "time, not just across a random split."
+            )
+            fm.add(p_fix_t,
+                f"Precision on 2026 flats: {flat_fix_temporal['flat_precision_2026_before']} to "
+                f"{flat_fix_temporal['flat_precision_2026_after']}. Tuned on "
+                f"{flat_fix_temporal['n_tune_2025']:,} 2025 flats, scored on "
+                f"{flat_fix_temporal['n_holdout_2026']:,} 2026 flats."
+            )
 
     # 7. Real-World Application: A Bristol Case Study
     doc.add_heading("6. Real-World Application: Bristol, Manchester, and Leeds", level=1)
@@ -1719,8 +1749,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "direction, not a confirmed final score for every year.",
             "No location data. The model uses no geographic input, so it cannot pick up local "
             "factors like climate, fuel poverty, or regional building practice.",
-            "Recall on flats. The threshold fix in Section 5.6 closes the gap but was tuned and "
-            "scored on one test period; it needs confirming on a later one before deployment.",
+            "Recall on flats. The threshold fix in Section 5.6 now holds across a real time "
+            "boundary (tuned on 2025 flats, checked on 2026 flats), not just a random split, "
+            "but that is still one boundary, not the repeated check across several years that "
+            "Section 7 gives the main model.",
         ]
     else:
         limitation_items = [
