@@ -24,6 +24,7 @@ import numpy as np
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor, Mm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.section import WD_SECTION_START
 from docx.oxml.ns import qn
@@ -346,7 +347,7 @@ def add_bristol_table(doc, rows):
     for j, h in enumerate(headers):
         cell = table.cell(0, j)
         cell.text = h
-        shade_cell(cell, '2F2F2F')
+        shade_cell(cell, '4472C4')
         for para in cell.paragraphs:
             para.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in para.runs:
@@ -373,6 +374,7 @@ def add_bristol_table(doc, rows):
                 for run in para.runs:
                     run.font.size = Pt(10)
                     run.font.name = 'Times New Roman'
+    polish_table(table)
     return table
 
 
@@ -389,7 +391,7 @@ def add_cities_table(doc, rows):
     for j, h in enumerate(headers):
         cell = table.cell(0, j)
         cell.text = h
-        shade_cell(cell, '2F2F2F')
+        shade_cell(cell, '4472C4')
         for para in cell.paragraphs:
             para.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in para.runs:
@@ -411,6 +413,7 @@ def add_cities_table(doc, rows):
                 for run in para.runs:
                     run.font.size = Pt(10)
                     run.font.name = 'Times New Roman'
+    polish_table(table)
     return table
 
 
@@ -420,6 +423,17 @@ def shade_cell(cell, hex_color):
     shd.set(qn('w:color'), 'auto')
     shd.set(qn('w:fill'), hex_color)
     cell._tc.get_or_add_tcPr().append(shd)
+
+
+def polish_table(table):
+    """Vertically centre every cell and stop a row splitting across a
+    page break, applied once after a table's cells are filled in."""
+    for row in table.rows:
+        trPr = row._tr.get_or_add_trPr()
+        cant_split = OxmlElement('w:cantSplit')
+        trPr.append(cant_split)
+        for cell in row.cells:
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
 
 # Displayed columns and order: the metrics a marker expects to see first
@@ -482,7 +496,7 @@ def add_comparison_table(doc, rows, winners):
     for j, h in enumerate(headers):
         cell = table.cell(0, j)
         cell.text = COMPARISON_HEADER_DISPLAY.get(h, h)
-        shade_cell(cell, '2F2F2F')
+        shade_cell(cell, '4472C4')
         for para in cell.paragraphs:
             para.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in para.runs:
@@ -515,6 +529,7 @@ def add_comparison_table(doc, rows, winners):
                         run.bold = True
 
     set_column_widths(table, headers, COMPARISON_COL_WIDTHS_IN)
+    polish_table(table)
     return table
 
 
@@ -772,7 +787,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "properties but why (Section 5.3)."
     )
     doc.add_paragraph(
-        "Four algorithms compete (Section 4), judged by nested cross-validation and a "
+        "4 algorithms compete (Section 4), judged by nested cross-validation and a "
         "time-held-out test set: trained on the past, tested on the future, as it would "
         "actually be used."
     )
@@ -854,7 +869,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if safe:
         p_eda1 = doc.add_paragraph()
         p_eda1.add_run(
-            "Each certificate has 41 fields, 20 numeric and 21 categorical. Thirteen carry missing "
+            "Each certificate has 41 fields, 20 numeric and 21 categorical. 13 carry missing "
             "values (Fig. 2). The floor-level energy rating is missing in 89.3% of records and "
             "is dropped as too sparse to impute; a cluster missing in 14.7% is filled with the "
             "median or most common value. About 0.1% carry impossible negative values and are "
@@ -893,7 +908,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         )
     else:
         doc.add_paragraph(
-            "Thirteen of the 41 raw fields carry missing values (Fig. 2), concentrated in "
+            "13 of the 41 raw fields carry missing values (Fig. 2), concentrated in "
             "component-level ratings rather than spread evenly across the dataset. FLOOR_ENERGY_EFF "
             "is missing in 89.3% of records, too sparse to impute reliably, and is dropped "
             "from the feature set entirely rather than filled with a misleading default. "
@@ -1085,12 +1100,18 @@ def build_report(mode="full", two_column=False, name_tag=""):
     # 5. Results
     doc.add_heading("5. Results", level=1)
     doc.add_heading("5.1 Model Comparison", level=2)
-    doc.add_paragraph(
+    p_t1intro = doc.add_paragraph(
         "Table 1 gives test-set performance, the best value in each column bolded, whichever "
         "model that turns out to be. Accuracy is shown for reference, but it is not the metric "
         "that decides anything here, a model can score well on it just by favouring the "
         "majority class (Section 4)."
     )
+    # Keeps this paragraph on the same page as the caption and table that follow
+    # it, rather than risk it being the last line on a page with the table
+    # itself pushed alone onto the next, which is what left a near-empty page
+    # here before.
+    p_t1intro.paragraph_format.keep_with_next = True
+    p_t1intro.paragraph_format.keep_together = True
 
     # keep this short enough to fit one line at column width. A table caption sits
     # above its table, and the table is a floating image in two-column mode, so a
@@ -1478,7 +1499,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         cap_bristol.paragraph_format.keep_with_next = True
         cap_bristol.paragraph_format.keep_together = True
         cap_run = cap_bristol.add_run(
-            "Table 2. Eight Bristol test-set properties: model output vs. actual label."
+            "Table 2. 8 Bristol test-set properties: model output vs. actual label."
         )
         cap_run.italic = True
         cap_run.font.size = Pt(10)
@@ -1527,7 +1548,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     if city_rows:
         p_cities = doc.add_paragraph()
         p_cities.add_run(
-            "One city is not proof this generalises, so I ran the same held-out check on "
+            "1 city is not proof this generalises, so I ran the same held-out check on "
             "Manchester and Leeds, both denser and more terraced than Bristol (Table 3). "
             "Recall holds up on all three, the model still finds most of the real high-potential "
             "homes even where the local housing stock looks nothing like Bristol's. Precision "
@@ -1700,7 +1721,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "exploration in Section 3.1, moved to Kaggle's cloud notebooks since a nested search "
         "across four models at that size needs more memory and sustained CPU time than my own "
         "machine gives, and the full 7.25 million eligible records never fit as a single table "
-        "on it at all. Two findings came from that move. The chosen hyperparameters barely "
+        "on it at all. 2 findings came from that move. The chosen hyperparameters barely "
         "changed between the two sample sizes, reassuring but only one data point. And the "
         "Kaggle environment used a different scikit-learn version: the saved preprocessing "
         "pipeline would not load locally until the versions matched exactly, a real "
@@ -1776,7 +1797,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         )
     else:
         doc.add_paragraph(
-            "Three extensions follow directly from the limitations above. First, a full "
+            "3 extensions follow directly from the limitations above. First, a full "
             "nested-CV search repeated on every fold of Section 7's walk-forward check, not "
             "just a refit with the main model's existing settings, which would say how often "
             "the model actually needs retuning rather than only retraining. Second, "

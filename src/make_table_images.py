@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 DATA_DIR = "data/processed"
 FIGURES_DIR = "report/figures"
 
-HEADER_BG = "#2F2F2F"
+HEADER_BG = "#4472C4"
 WINNER_BG = "#E8F0E3"
 ERROR_BG = "#F5DCDC"
 RULE_COLOR = "#333333"
