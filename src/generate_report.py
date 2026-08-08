@@ -1142,10 +1142,19 @@ def build_report(mode="full", two_column=False, name_tag=""):
             f"{m['model']} ({m['test_roc_auc']:.4f})" for m in winners['ranked_auc']
         )
         if safe:
-            result_sentence = (
-                f"{winners['best_auc_model']} leads on every metric in Table 1, despite not "
-                "leading on cross-validation (Section 7)."
-            )
+            recall_leader = max(comparison_rows, key=lambda r: float(r['Test Recall']))['Model']
+            if recall_leader == winners['best_auc_model']:
+                result_sentence = (
+                    f"{winners['best_auc_model']} leads on every metric in Table 1, despite not "
+                    "leading on cross-validation (Section 7)."
+                )
+            else:
+                result_sentence = (
+                    f"{winners['best_auc_model']} leads on accuracy, precision, F1, ROC-AUC, "
+                    f"and PR-AUC in Table 1, the one it does not lead is recall, where "
+                    f"{recall_leader} scores highest, despite {winners['best_auc_model']} also "
+                    "not leading on cross-validation (Section 7)."
+                )
         else:
             result_sentence = (
                 f"On the held-out test set the models rank by ROC-AUC as: {auc_order}. "
