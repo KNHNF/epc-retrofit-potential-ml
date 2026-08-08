@@ -25,6 +25,17 @@ Thumbs.db
 report/*.docx
 report/*.pdf
 
+# Blackboard submission receipts: carry a real name and a confirmation
+# number, personal records, not project files.
+report/*receipt*.txt
+
+# Session scratch, not a project deliverable: a personal submission
+# checklist and a one-off side-draft tool from an earlier word-trimming
+# pass, both superseded by the real report generator.
+FINAL_CHECKLIST.md
+report/REWRITE_DRAFT_COMPARE.md
+report/_build_rewrite_draft.py
+
 # Trained model binaries (too large for a normal git push, GitHub rejects
 # anything over 100MB outright; the real Random Forest export is ~200MB.
 # feature_schema.json is small and IS tracked, it's just data (column
