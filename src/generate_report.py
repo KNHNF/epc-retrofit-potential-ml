@@ -34,7 +34,7 @@ from docx.opc.packuri import PackURI
 from two_column_layout import (
     add_floating_picture, add_bordered_picture, add_equation,
     add_display_equation, disable_heading_widow_control,
-    set_compatibility_mode_full,
+    set_compatibility_mode_full, add_hyperlink,
 )
 
 DATA_DIR    = "data/processed"
@@ -42,24 +42,11 @@ FIGURES_DIR = "report/figures"
 
 os.makedirs("report", exist_ok=True)
 
-# Real Word footnotes/endnotes. python-docx has no built-in API for either,
-# so this builds the word/footnotes.xml or word/endnotes.xml part by hand
-# (separator + continuation separator entries are required by the OOXML
-# schema even with zero notes). Note text lives in a separate document
-# part, so it is NOT picked up by doc.paragraphs and does not count toward
-# the body word count below, same convention as excluding references.
-#
-# Two-column mode uses ENDNOTES, not footnotes. Confirmed in real Word
-# (2026-07-23): Word ties a footnote area's column count to the section's
-# body column count with no override, so a single footnote long enough to
-# spill from column 1's footnote area into column 2's forces Word to end
-# the page early, stranding blank space below the shorter column, the same
-# failure mode as the earlier section-break and float-overlap bugs, just a
-# different mechanism. Endnotes collect once at the very end of the
-# document instead of per-page, so they never interact with the section's
-# column layout at all, structurally avoiding the whole bug category rather
-# than patching around it. Single-column mode keeps footnotes (confirmed
-# to render correctly there, no column to spill across).
+# Real Word footnotes/endnotes, built by hand since python-docx has no API
+# for either. Two-column mode uses endnotes instead of footnotes because a
+# footnote area is tied to the section's column count, so a long footnote
+# can strand blank space; endnotes collect once at the document's end and
+# avoid that entirely. See docs/IMPLEMENTATION_NOTES.md.
 FOOTNOTES_CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
 FOOTNOTES_REL_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
 ENDNOTES_CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"
@@ -189,26 +176,11 @@ def switch_columns(doc, num_cols):
 
 
 def add_figure(doc, path, label, width=5.5, two_column=False, dense=True):
-    """Add a figure inside a bordered box with a short label ("Fig. 1.")
-    at the top-left, the technique used by the 92/100 NLP exemplar. What
-    the figure actually shows and why it matters belongs in the
-    surrounding body prose calling this, `label` is a tag, not a
-    description, do not pass a full sentence here.
-
-    Single-column mode: always a real 1x1 bordered table (`add_bordered_
-    picture`), a single column already spans the full usable page width,
-    so no figure ever needs to cross a column gutter here.
-
-    Two-column mode: no section break, ever, that's what caused the
-    original whitespace problem. `dense=True` (multi-panel plots, long
-    axis labels, correlation matrices, anything that would go illegible
-    shrunk to column width) floats the figure across both columns via
-    `add_floating_picture` (a real 1x1 table cannot cross the column
-    gutter, confirmed broken three ways, so this uses a floating picture
-    with the label as a plain paragraph placed above it instead).
-    `dense=False` (a simple single-series chart with short labels) uses
-    the same real bordered table as single-column mode, at column width.
-    """
+    """Add a figure with its full caption (`label`, e.g. "Fig. 1. ..."),
+    single-column always as a bordered table, two-column as a floating
+    picture when dense=True (a real table cannot cross the column
+    gutter), otherwise column-width like single-column. See
+    docs/IMPLEMENTATION_NOTES.md."""
     if not os.path.exists(path):
         p = doc.add_paragraph(f"[FIGURE: {label}. Run notebooks to generate.]")
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -692,9 +664,18 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "Karen Homayounfar (25065219)\n"
         "MSc Data Science, UWE Bristol\n"
         "Machine Learning and Predictive Analytics\n"
-        "Code: https://github.com/KNHNF/epc-retrofit-potential-ml"
+        "Code: "
     )
     run.font.size = Pt(11)
+    hyperlink = add_hyperlink(
+        authors, "https://github.com/KNHNF/epc-retrofit-potential-ml",
+        "https://github.com/KNHNF/epc-retrofit-potential-ml",
+    )
+    for r in hyperlink.findall(qn('w:r')):
+        rpr = r.find(qn('w:rPr'))
+        sz = OxmlElement('w:sz')
+        sz.set(qn('w:val'), '22')
+        rpr.append(sz)
 
     doc.add_paragraph()
 
@@ -1025,16 +1006,15 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_cv.add_run(
             "Every model is weighted so the rare class counts as much as the common one. I "
             "report F1-macro and ROC-AUC rather than accuracy, since just guessing the majority "
-            "class alone would score 78.3%, without the model learning anything real. Nested "
-            "cross-validation (5-fold outer, 3-fold inner) keeps the folds that choose settings "
-            "separate from the folds that report the score, tuning each model's own settings on "
-            "the inner loop. Final numbers use the 2025-2026 holdout, built in Python."
+            "class alone would score 78.3%, without the model learning anything real. I use "
+            "nested cross-validation (5-fold outer, 3-fold inner) because tuning and scoring on "
+            "the same data would make the result look better than it is (Varma and Simon, "
+            "2006). Final numbers use the 2025-2026 holdout, built in Python."
         )
         fm.add(p_cv,
-            "Nested cross-validation split rationale follows Varma and Simon (2006). Built with "
-            "scikit-learn (Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016). Chosen "
-            "settings: C=10 for Logistic Regression, 30% of features per split for Random "
-            "Forest, depth 6 at learning rate 0.1 for XGBoost."
+            "Built with scikit-learn (Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, "
+            "2016). Chosen settings: C=10 for Logistic Regression, 30% of features per split "
+            "for Random Forest, depth 6 at learning rate 0.1 for XGBoost."
         )
     else:
         p_impl = doc.add_paragraph()
@@ -1128,14 +1108,9 @@ def build_report(mode="full", two_column=False, name_tag=""):
 
     table1_img = f"{FIGURES_DIR}/table1_model_comparison.png"
     if two_column and os.path.exists(table1_img):
-        # Real Word tables cannot float across both columns in Word (three
-        # separate mechanisms tried and confirmed broken in real Word:
-        # section break, DrawingML text box, native w:tblpPr), so the
-        # two-column variant renders the same real data as an image
-        # instead, using the picture float that already works. The
-        # single-column variant keeps a real, editable Word table below.
-        # Caption already added above (matches Table 2's pattern), so this
-        # picture float gets a single space, not a duplicate caption.
+        # Two-column: image, a real table can't float across columns (see
+        # docs/IMPLEMENTATION_NOTES.md). Caption's already added above, so
+        # just a space here, not a duplicate.
         add_floating_picture(doc, table1_img, " ")
     else:
         add_comparison_table(doc, comparison_rows, winners)
@@ -2005,23 +1980,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if p.text.strip() == "References":
             body_end = i
             break
-    # Figure and table captions ("Fig. 2. Missing-value rate...", "Table 1. Model
-    # comparison...") are captions, not prose, and standard academic convention
-    # excludes them from a body word count the same way references and footnotes
-    # are excluded here. Single-column mode used to exclude bare "Fig. N." labels
-    # for free (they live inside a table cell, which doc.paragraphs never sees),
-    # but that only worked for the old bare labels, not a real descriptive
-    # caption, and two-column mode's floating-picture labels are top-level
-    # paragraphs either way. Matching on the caption prefix, not full equality,
-    # excludes any caption regardless of how much description it carries, so
-    # writing a proper one-line caption never costs body word budget.
-    # The period after the number is load-bearing, not decorative: without it,
-    # this also matched a genuine body sentence, "Table 1 presents test-set
-    # performance...", and silently dropped 75 real words from the count
-    # (found by listing every paragraph this regex matched and checking each
-    # one was an actual caption, not assumed). Every real caption in this
-    # report has the period; ordinary prose referencing a table or figure by
-    # number does not.
+    # Captions ("Fig. 2. ...", "Table 1. ...") don't count toward the body
+    # word count, standard convention, same as references and footnotes.
+    # The period after the number matters: without it this regex also
+    # matched real prose like "Table 1 presents test-set performance...",
+    # silently dropping 75 real words from the count once.
     caption_re = re.compile(r"^(Fig|Table)\.?\s*\d+\.(\s|$)")
     word_count = 0
     if body_start is not None and body_end is not None:

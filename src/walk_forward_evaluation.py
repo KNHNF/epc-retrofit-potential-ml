@@ -1,28 +1,11 @@
 """
 walk_forward_evaluation.py
-The main pipeline trains once on 2020-2024 and tests once on 2025-2026.
-That is a single split, so it cannot tell us whether Random Forest holds up
-year after year or slowly gets worse. This script checks that: it moves the
-training window forward one year at a time and always tests on the year
-right after it, five folds in total.
-
-By default this reuses the hyperparameters already picked in
-04_Random_Forest.ipynb (n_estimators=300, max_features=0.3,
-min_samples_leaf=1) rather than re-running the nested cross-validation
-search inside every fold, that took far too long on the machine this was
-first written on. Set TUNE_PER_FOLD = True below to do the real thing, a
-small grid search inside every fold, on a machine that can actually afford
-it (Kaggle or Colab, not a throttled sandbox). TRAIN_SAMPLE_SIZE and
-TEST_SAMPLE_SIZE are also just module constants, bump them the same way.
-
-The full 7.25M-row training parquet does not fit in memory as a whole
-pandas frame on a constrained machine, so each year is pulled straight
-from the parquet file with a row-group filter (pyarrow prunes anything
-outside the date range before it ever becomes a DataFrame), then sampled
-down immediately. Sampling per year rather than after concatenating keeps
-memory bounded no matter how many years a fold covers. On Kaggle or Colab
-this is not strictly necessary, RAM there can usually just hold the full
-file, but there is no downside to leaving it as is.
+Checks whether Random Forest holds up over time rather than just on the
+main pipeline's single 2020-2024/2025-2026 split: moves the training
+window forward one year at a time, five folds in total. Reuses the
+main model's tuned settings by default (TUNE_PER_FOLD=True does a real
+search per fold instead, needs real CPU headroom, not this sandbox).
+See docs/IMPLEMENTATION_NOTES.md.
 
 Usage: python src/walk_forward_evaluation.py
 """

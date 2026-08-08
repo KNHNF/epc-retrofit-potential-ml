@@ -1,82 +1,13 @@
 """
 two_column_layout.py
-Reusable helpers for IEEE-style two-column Word reports that actually look
-like a published paper: no stranded whitespace, figures sized to fit their
-column (or floating full width when they need to), bordered figure boxes,
-and real typeset equations. Built for python-docx, which has no native
-support for any of this.
+Helpers for IEEE-style two-column Word reports: two columns, figures that
+float across both columns without leaving stranded whitespace, and real
+typeset equations, none of which python-docx supports natively.
 
-Companion to the academic-docx skill. Copy this file into the report
-project's src/ directory and import from it; do not import across projects.
-
-Three things python-docx cannot do out of the box, all solved here:
-
-1. Two columns. `switch_columns(doc, n)` inserts a continuous section break
-   and sets the column count. Column changes are cheap; the real skill is
-   knowing when NOT to use them (see below).
-
-2. A figure that spans both columns. The naive approach is a continuous
-   section break to 1 column around every wide figure. Don't do that: Word
-   does not auto-balance a two-column section that is too short to fill
-   both columns before a forced break, so every such figure stamps a
-   near-empty column next to it. Real IEEE papers don't do this either.
-   They float the image over the page, wrapped top-and-bottom, which lets
-   it cross the column gutter without breaking the section at all.
-   `add_floating_picture()` does this via a raw `wp:anchor` (python-docx's
-   `add_picture` only builds inline `wp:inline` drawings, which are always
-   constrained to the current column). This is the single highest-value
-   technique in this file, use it for any figure/table that is too wide,
-   dense, or label-heavy to survive being shrunk to column width.
-
-3. Equations. Word's own equations are OMML (`m:oMath`), not something
-   python-docx or LaTeX renders directly. `add_equation()` takes a LaTeX
-   string, converts it to MathML via `latex2mathml` (pip install
-   latex2mathml), then to OMML via Microsoft's own MML2OMML.XSL stylesheet,
-   which ships with every Office install. Real typeset equations, not a
-   screenshot pasted in as an image.
-
-## Deciding what goes in-column vs floating
-
-Don't float everything, that's what caused the original whitespace problem
-in the other direction (every figure forcing a break). The rule that
-matches how real IEEE papers do it:
-
-- A figure with 1-2 simple series and short labels: shrink to column width
-  (~2.7-2.9in on a 1in-margin A4 page) and place inline like a normal
-  paragraph. No column switch needed at all, it just flows.
-- A figure with dense content that would go illegible at column width
-  (correlation matrices, permutation-importance bar charts with long
-  feature-name labels, side-by-side subplot pairs like ROC+PR) or any
-  table wider than ~3 columns: use `add_floating_picture()` at full page
-  width instead of shrinking it.
-- When in doubt, ask "would a marker need to zoom in to read this at
-  column width?" If yes, float it.
-
-## Usage sketch
-
-    from two_column_layout import (
-        switch_columns, add_floating_picture, add_bordered_picture,
-        add_equation, set_page_a4,
-    )
-
-    doc = Document()
-    set_page_a4(doc)                 # do this before anything else
-    doc.add_paragraph("Title, authors, abstract: stay single column.")
-    switch_columns(doc, 2)           # body starts here
-
-    doc.add_paragraph("Two-column running text...")
-    add_bordered_picture(doc, "fig_simple.png", "Fig. 1. Caption.", width_in=2.7)
-
-    p = doc.add_paragraph()
-    add_equation(p, r"F_1 = 2 \cdot \frac{P \cdot R}{P + R}")
-
-    add_floating_picture(doc, "fig_dense_heatmap.png", "Fig. 2. Caption.",
-                          width_in=6.2)   # crosses both columns, no break
-
-Every function here was prototyped and visually verified (LibreOffice PDF
-render, not just "the XML parses") before being written up. If you extend
-this file, verify the same way, python-docx will happily save XML that
-Word silently mangles on open (see the font bug note in add_style_font).
+See docs/IMPLEMENTATION_NOTES.md for why each of these is built the way
+it is, and when to float a figure versus just shrinking it to column
+width. Everything here was checked by actually opening the result in
+Word, not just by the XML looking right.
 """
 
 import latex2mathml.converter
@@ -99,6 +30,36 @@ R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PIC_URI = "http://schemas.openxmlformats.org/drawingml/2006/picture"
 
 
+def add_hyperlink(paragraph, url, text, color="0563C1", underline=True):
+    """A real clickable hyperlink run, not just blue underlined text.
+    python-docx has no built-in method for this."""
+    part = paragraph.part
+    r_id = part.relate_to(
+        url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True,
+    )
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+
+    run = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
+    if color:
+        c = OxmlElement("w:color")
+        c.set(qn("w:val"), color)
+        rPr.append(c)
+    if underline:
+        u = OxmlElement("w:u")
+        u.set(qn("w:val"), "single")
+        rPr.append(u)
+    run.append(rPr)
+    t = OxmlElement("w:t")
+    t.text = text
+    run.append(t)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+    return hyperlink
+
+
 # Page setup
 
 def set_page_a4(doc, margin_in=1.0):
@@ -114,15 +75,10 @@ def set_page_a4(doc, margin_in=1.0):
 
 
 def set_compatibility_mode_full(doc):
-    """python-docx's bundled default template ships with
-    `compatibilityMode` set to 14 (Word 2010) in settings.xml. Word 2013+
-    then opens every generated document in "Compatibility Mode": the title
-    bar says so, and it is not cosmetic. Confirmed directly in real Word:
-    a DrawingML floating text box (used by `add_display_equation` for a
-    two-column equation) rendered as nothing, completely invisible, no
-    error, until the file was converted out of Compatibility Mode (File >
-    Info > Convert). Call this once, right after `Document()`, so nobody
-    has to do that by hand."""
+    """Fixes an old Word compatibility setting python-docx leaves in
+    place by default, otherwise Word 2013+ opens the file in
+    Compatibility Mode, which broke floating equations for us. Call
+    once, right after Document(). See docs/IMPLEMENTATION_NOTES.md."""
     settings = doc.settings.element
     compat = settings.find(qn('w:compat'))
     if compat is None:
@@ -142,24 +98,10 @@ def set_compatibility_mode_full(doc):
 
 
 def disable_heading_widow_control(doc, style_names=("Heading 1", "Heading 2", "Heading 3")):
-    """Two-column layouts need this; single-column ones can take it or
-    leave it. Word's built-in Heading 1/2/3 styles carry `keepNext` +
-    `keepLines` (`w:pPr` widow/orphan control): a heading is kept on the
-    same page as the paragraph after it, and its own lines are kept
-    together. On a tall single-column page there's usually enough room
-    that this never bites. In a narrow two-column layout there often
-    isn't: if a heading and the start of its section don't both fit in
-    the remaining space of the current column, Word bumps the whole
-    thing to the top of the next column and leaves the rest of the
-    current column blank. This is the single biggest cause of stranded
-    whitespace in a two-column report that ISN'T about figures at all,
-    confirmed by inspecting the actual style XML (`<w:keepNext/>
-    <w:keepLines/>` sat right there in Heading1's `pPr`) and comparing a
-    render where headings could fall wherever they wanted against one
-    where they couldn't. Call this once, after `switch_columns(doc, 2)`,
-    for a two-column document. Leaving it on for a single-column report
-    is fine, there just isn't enough vertical pressure per page for it
-    to matter."""
+    """Stops headings forcing a blank half-column in a two-column
+    layout (the biggest cause of stranded whitespace here, more than
+    figures). Call once after switch_columns(doc, 2). Harmless to skip
+    for single-column. See docs/IMPLEMENTATION_NOTES.md."""
     for name in style_names:
         try:
             style = doc.styles[name]
@@ -177,19 +119,9 @@ def disable_heading_widow_control(doc, style_names=("Heading 1", "Heading 2", "H
 # Fonts: the theme-leak bug
 
 def set_style_font(style, name, size=None, color=None):
-    """Set a style's font properly, not just python-docx's `style.font.name`.
-
-    The bug: python-docx's default template's styles (Heading 1/2, Normal,
-    docDefaults) reference theme fonts (`w:asciiTheme="majorHAnsi"`, which
-    resolves to Calibri). Setting `style.font.name = 'Times New Roman'`
-    adds an explicit `w:ascii` attribute ALONGSIDE the theme one, but
-    python-docx's own serializer favours the theme attribute once both are
-    present, on save, not in memory. Verified by monkeypatching
-    `Document.save` to dump the style XML immediately before
-    serialization: correct in memory, wrong on disk, every time, for every
-    style pulled from the built-in template. The fix is to strip the theme
-    reference outright, not layer an explicit font on top of it.
-    """
+    """Sets a style's font in a way that actually survives saving, unlike
+    plain style.font.name, which silently loses to the template's theme
+    font on save. See docs/IMPLEMENTATION_NOTES.md."""
     style.font.name = name
     rpr = style.element.get_or_add_rPr()
     rFonts = rpr.find(qn('w:rFonts'))
@@ -261,38 +193,10 @@ _next_rel_height = [1]
 
 def add_floating_picture(doc, image_path, label, width_in=6.2, caption_below=True,
                           caption_font="Times New Roman"):
-    """A picture that floats over the page, spanning both columns of a
-    two-column section, with body text wrapped top-and-bottom around it.
-    No section break, so no stranded whitespace. Use this for any figure
-    or table image too dense to survive being shrunk to one column.
-
-    `doc.add_picture()` cannot do this: it only ever builds an inline
-    drawing (`wp:inline`), which is always constrained to the width of
-    whatever column it's placed in. This builds a `wp:anchor` instead.
-
-    `label` is a real one-line descriptive caption ("Fig. 3. Pearson
-    correlation matrix, numeric features and target."), placed BELOW the
-    image, left-aligned, bold, not italic, matching standard IEEE style
-    for figures (captions below; only table captions go above). Earlier
-    drafts used a bare tag ("Fig. 1.") ABOVE the image, matching the
-    92/100 NLP exemplar's box style, with the description living only in
-    the surrounding body prose. Changed on two counts: a bare tag reads as
-    unfinished next to a real caption, and a caption ABOVE a floating
-    anchor is genuinely unreliable here, not just a style choice. The
-    anchor's vertical position is computed relative to the paragraph that
-    holds the drawing; when a real multi-line caption came first, its
-    height was not always known yet by the time the anchor's position was
-    resolved, and LibreOffice's renderer would visibly split the caption's
-    own lines around the image (confirmed by rendering to PDF and
-    inspecting the page, not assumed). Putting the caption after the
-    image removes the ambiguity entirely, since nothing is anchored
-    relative to it. Interpretation (what the figure means, why it
-    matters) still belongs in body prose, not repeated in the caption.
-    A real 1x1 bordered table cannot be used here (that is what
-    `add_bordered_picture` does for column-width figures): a table inside
-    a two-column section cannot cross the column gutter, confirmed broken
-    three separate ways in real Word (see the table-floating notes
-    below)."""
+    """A picture that floats across both columns of a two-column
+    section, wrapped top-and-bottom, no section break, so no stranded
+    whitespace. `label` is the full one-line caption, placed below the
+    image (IEEE style). See docs/IMPLEMENTATION_NOTES.md for why."""
     rid, image = doc.part.get_or_add_image(image_path)
     width_emu = Emu(int(width_in * 914400))
     cx, cy = image.scaled_dimensions(width_emu, None)
@@ -485,88 +389,11 @@ def add_equation(paragraph, latex, xsl_path=MML2OMML_XSL_PATH):
     return omml_el
 
 
-def add_floating_table(doc, table, width_in=6.2):
-    """DOES NOT achieve cross-column spanning, confirmed in real Word:
-    `w:tblpPr` positions the table but Word still clips its visible
-    rendering to the local column's width, unlike `wp:anchor` for
-    pictures. Kept for reference and for cases where a table only needs
-    modest same-column repositioning, not a genuinely wide table that
-    must span both columns of a two-column section, for that, render the
-    table as an image and float it with `add_floating_picture` instead
-    (see the EPC retrofit coursework project's `make_table_images.py` and
-    `generate_report.py` for the working pattern).
-
-    Makes an already-built python-docx `Table` float over the page via
-    native OOXML table positioning (`w:tblpPr`), so it spans both columns
-    without a section break and without moving it into a text box.
-
-    Two other approaches were tried and rejected, both confirmed broken in
-    real Word, not just assumed:
-    1. The original pattern, `switch_columns(doc, 1)` before the table and
-       `switch_columns(doc, 2)` after: a continuous section break to fewer
-       columns cannot start partway down a column, only at the top of a
-       fresh page, so Word blanks the rest of the PREVIOUS page to get
-       there, the identical bug `add_display_equation` had before its fix.
-    2. Wrapping the table in a DrawingML floating text box (the same
-       `wp:anchor`/`wps:wsp` mechanism that works for the equation): builds
-       valid, schema-correct XML (confirmed by reading the raw docx XML,
-       the table was genuinely there, correctly built) but Word renders it
-       as nothing, no error. A `w:tbl` inside a `wps:txbx` is apparently
-       not something Word's rendering engine supports, unlike OMML in the
-       same container, which does render.
-
-    `w:tblpPr` is the OOXML mechanism built specifically for a table that
-    needs to float independent of the surrounding column/text layout,
-    anchored to the page with text wrapping around it, the table-specific
-    equivalent of `wp:anchor` for pictures. No section break, no text box,
-    the table stays exactly where it already is in the document, this
-    just adds positioning properties to its existing `tblPr`."""
-    tbl = table._tbl
-    tblPr = tbl.tblPr
-
-    tblpPr = OxmlElement('w:tblpPr')
-    tblpPr.set(qn('w:leftFromText'), '180')
-    tblpPr.set(qn('w:rightFromText'), '180')
-    tblpPr.set(qn('w:topFromText'), '120')
-    tblpPr.set(qn('w:bottomFromText'), '120')
-    tblpPr.set(qn('w:vertAnchor'), 'text')
-    tblpPr.set(qn('w:horzAnchor'), 'page')
-    tblpPr.set(qn('w:tblpXSpec'), 'center')
-    tblpPr.set(qn('w:tblpY'), '1')
-    tblPr.insert(0, tblpPr)
-
-    width_twips = int(width_in * 1440)
-    tblW = tblPr.find(qn('w:tblW'))
-    if tblW is None:
-        tblW = OxmlElement('w:tblW')
-        tblPr.append(tblW)
-    tblW.set(qn('w:type'), 'dxa')
-    tblW.set(qn('w:w'), str(width_twips))
-    return table
-
-
 def add_display_equation(doc, latex, two_column=False, xsl_path=MML2OMML_XSL_PATH,
                           width_in=6.2):
-    """A centred, full-width display equation. Use this instead of
-    `add_equation` for anything beyond a short inline term.
-
-    Earlier version of this function used a column-count section break
-    (1 column for just this paragraph, back to 2 after). Confirmed in real
-    Microsoft Word (not just LibreOffice, which rendered it fine and hid
-    the problem) that this is wrong: switching a continuous section from 2
-    columns to 1 mid-page forces Word to blank out the rest of the current
-    page, because a full-width section cannot start partway down a column,
-    it has to start at the top of a fresh page. That stranded almost an
-    entire page next to a six-word sentence.
-
-    Fixed the same way `add_floating_picture` fixes figures: no section
-    break at all. First attempt floated a legacy VML `w:pict` text box;
-    confirmed in real Word that OMML does not render inside a VML
-    `v:textbox`, it renders as nothing, silently, no error. Switched to a
-    modern DrawingML text box (`wps:wsp`/`wps:txbx`), the same `wp:anchor`
-    float mechanism `add_floating_picture` uses, just with a text box
-    instead of a `pic:pic` as the graphic payload. `a:spAutoFit` lets Word
-    size the box to the equation's actual rendered size."""
+    """A centred, full-width display equation, floated the same way
+    add_floating_picture floats a figure, so it doesn't need a section
+    break either. See docs/IMPLEMENTATION_NOTES.md."""
     if not two_column:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER

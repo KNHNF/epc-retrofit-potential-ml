@@ -1,20 +1,12 @@
 """
 make_bristol_map.py
-Builds a choropleth of Bristol postcode districts (BS1, BS3, BS5, etc.),
-coloured by the trained model's predicted high-retrofit-potential rate for
-that district's held-out test-set properties. District shapes are real
-boundary polygons, not point markers on a basemap tile: from
-data/external/bs_postcode_districts.geojson, itself the postcode-district
-polygons for postcode area BS from Wikipedia's "List of postcode districts
-in the United Kingdom" (https://en.wikipedia.org/wiki/List_of_postcode_districts_in_the_United_Kingdom),
-retrieved via the uk-postcode-polygons GeoJSON export
-(https://github.com/missinglink/uk-postcode-polygons). Reads
-data/processed/bristol_district_summary.csv (produced by bristol_case_study.py)
-for the rate and property count per district.
-
-No geopandas/shapely dependency: polygons are drawn directly from the
-GeoJSON coordinate arrays with matplotlib patches, since no geometric
-operations (only filling and centroid-for-label placement) are needed.
+Builds a choropleth of Bristol postcode districts, coloured by the
+model's predicted retrofit rate per district. Boundary polygons are
+real, from data/external/bs_postcode_districts.geojson (Wikipedia's
+postcode district list via the uk-postcode-polygons GeoJSON export,
+github.com/missinglink/uk-postcode-polygons), not point markers on a
+basemap. No geopandas needed, just matplotlib patches on the raw
+coordinates. Reads data/processed/bristol_district_summary.csv.
 
 Usage: python src/make_bristol_map.py
 """

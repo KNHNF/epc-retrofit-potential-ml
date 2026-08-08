@@ -1,14 +1,9 @@
 """
-Run this script once to free up disk space.
+One-off script I ran to free disk space: clears out the recommendations
+CSVs and certificates-2012 through 2019, since only 2020-2026 are used.
+Asks for confirmation before deleting anything.
 
-Deletes:
-  - All recommendations-*.csv files (not needed for coursework)
-  - certificates-2012.csv through certificates-2019.csv (old, superseded by newer assessments)
-
-Keeps:
-  - certificates-2020.csv through certificates-2026.csv
-
-Run from Windows: python cleanup_data.py
+Usage: python cleanup_data.py
 """
 
 import os

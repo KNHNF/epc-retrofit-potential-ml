@@ -1,23 +1,14 @@
 """
 impact_and_fairness.py
-
-Two things the report was missing.
-
-1. Impact in money and carbon. The EPC register already carries the current and
-   potential heating cost and CO2 for every certificate, so the saving from
-   taking a home to its potential is in the data, not an assumption. The useful
-   comparison is what a fixed survey budget captures when it ranks by model
-   score against screening on rating band alone.
-
-2. Fairness. All headline metrics are aggregate. This breaks recall down by
-   property type and tenure to check the model is not systematically worse for
-   one kind of home.
-
-Savings are the register's own current-minus-potential figures. They assume the
-full recommended package is installed, which is an upper bound, not a forecast.
+Two checks: what a fixed survey budget saves in money and CO2 when
+ranked by model score versus rating band alone (the register's own
+current-minus-potential figures, an upper bound assuming the full
+recommended package gets installed), and whether recall is even across
+property type and tenure.
 
 Usage: python src/impact_and_fairness.py
-Writes data/processed/impact_summary.csv and data/processed/fairness_by_group.csv
+Writes impact_summary.csv, fairness_by_group.csv, flat_threshold.csv,
+flat_threshold_temporal.csv, all in data/processed/.
 """
 
 import csv
