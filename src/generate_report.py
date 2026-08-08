@@ -507,6 +507,14 @@ def add_comparison_table(doc, rows, winners):
                 run.font.name = 'Times New Roman'
                 run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
 
+    # Bold the actual best value in each significant column, not every one of
+    # those columns on whichever row wins overall: the overall winner is not
+    # necessarily the best on every individual metric (Random Forest wins on
+    # ROC-AUC here but has the lowest recall of the four models compared).
+    best_per_col = {
+        key: max(float(r[key]) for r in rows)
+        for key in COMPARISON_SIGNIFICANT_COLS if key in headers
+    }
     for i, row in enumerate(rows):
         is_winner = row.get('Model') == best_model
         for j, key in enumerate(headers):
@@ -519,7 +527,7 @@ def add_comparison_table(doc, rows, winners):
                 for run in para.runs:
                     run.font.size = Pt(9)
                     run.font.name = 'Times New Roman'
-                    if is_winner and key in COMPARISON_SIGNIFICANT_COLS:
+                    if key in best_per_col and float(row[key]) == best_per_col[key]:
                         run.bold = True
 
     set_column_widths(table, headers, COMPARISON_COL_WIDTHS_IN)
@@ -703,12 +711,14 @@ def build_report(mode="full", two_column=False, name_tag=""):
            f"{impact['uplift']:.1f} times as many correct hits for the same number of visits, "
            f"worth roughly GBP {(impact['model_cost'] - impact['band_cost'])/1e6:.1f}m more a "
            f"year in heating costs alone." if impact else "")
-        + " I compare four classifiers under nested cross-validation on 200,000 records from 2020 "
-        "to 2024, then test them on held-out 2025 to 2026 data. "
+        + " I compare four classifiers under nested cross-validation on just under 1 million "
+        "records from 2020 to 2024, then test them on held-out 2025 to 2026 data. "
         f"{winner_sentence} "
         "The positive rate halves across that boundary, from 21.7% to 10.8%, which is why the "
         "split is by time and not at random."
-        + (f" Recall is uneven by property type, 0.91 on houses against "
+        + (f" Recall is uneven by property type, "
+           f"{float(next((r['recall'] for r in fairness_rows if r['group'] == 'House'), 0)):.2f} on "
+           f"houses against "
            f"{float(next((r['recall'] for r in fairness_rows if r['group'] == 'Flat'), 0)):.2f} on "
            f"flats, which a flat-specific threshold closes (Section 5.6)." if fairness_rows else "")
     )
@@ -805,14 +815,22 @@ def build_report(mode="full", two_column=False, name_tag=""):
     )
     p_sample = doc.add_paragraph()
     p_sample.add_run(
-        "I draw a 200,000-record stratified training sample from 2020-2024 and a separate "
-        "50,000-record test sample from 2025-2026. Splitting by time rather than at random "
-        "stops the model learning from properties assessed after the ones it predicts. Where a "
-        "property was assessed more than once (matched on UPRN), I keep the most recent."
+        "The exploration in Section 3.1 uses a 200,000-record stratified sample, drawn from "
+        "2020-2024, with a separate 50,000-record test sample from 2025-2026. The final models "
+        "in Section 5 onward train on a much larger stratified sample, just under 1 million "
+        "records, assembled on Kaggle's cloud notebooks rather than locally, since a sample "
+        "nearly five times the exploratory one needs more memory and CPU time than a laptop "
+        "comfortably gives (Section 7.4 explains the choice and what it changed). Splitting by "
+        "time rather than at random stops the model learning from properties assessed after the "
+        "ones it predicts. Where a property was assessed more than once (matched on UPRN), I "
+        "keep the most recent."
     )
     fm.add(p_sample,
-        "UPRN: Unique Property Reference Number, a persistent government identifier for a single "
-        "property, used here to link repeat EPC assessments of the same home."
+        "Final training sample: 998,950 records (2020-2024). Final test sample: 199,682 records "
+        "(2025-2026), both stratified by target class, same 20-point-gap definition and same "
+        "time-based split as the exploratory sample. UPRN: Unique Property Reference Number, a "
+        "persistent government identifier for a single property, used here to link repeat EPC "
+        "assessments of the same home."
     )
     doc.add_paragraph(
         "The target is defined formally as:"
@@ -826,7 +844,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "score. The 20-point cut-off is wider than every band above G (F spans 18, D spans 14), "
         "so a qualifying gap always moves a home up at least one band, usually two, and it is "
         "the median gap among D-G homes. That gives 21.7% positive in training and 10.8% in "
-        "test (Fig. 1): newer certificates cover homes with less headroom left, and a random "
+        "test (Fig. 1), the same split in both the exploratory and the final sample: newer "
+        "certificates cover homes with less headroom left, and a random "
         "split would hide that shift."
     )
     add_figure(doc,
@@ -1183,7 +1202,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
 
     add_figure(doc,
         f"{FIGURES_DIR}/rf_confusion_matrix.png",
-        "Fig. 5. Random Forest confusion matrix, test set. The 733 false negatives are the "
+        "Fig. 5. Random Forest confusion matrix, test set. The false negatives are the "
         "error type that matters most here (Section 10).",
         # square figure, so a full 5.5in width would also make it 5.5in tall and
         # eat most of a page for a 2x2 grid of numbers
@@ -1203,10 +1222,10 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "McNemar's test on four model pairs checks whether their error patterns differ "
             "(Dietterich, 1998). It suits a single train/test split; a paired t-test on nested-CV "
             "folds would double-count overlapping folds and look over-confident. Every pair "
-            "differs (p < 0.0001), but with 50,000 rows small differences register as "
-            "significant. What that means in practice: the models get different properties "
-            "wrong, not that one is meaningfully better. Table 1's gaps are the better guide "
-            "to size."
+            "differs (p < 0.0001), but with a test set approaching 200,000 rows even small "
+            "differences register as significant. What that means in practice: the models get "
+            "different properties wrong, not that one is meaningfully better. Table 1's gaps "
+            "are the better guide to size."
         )
     else:
         doc.add_paragraph(
@@ -1421,9 +1440,15 @@ def build_report(mode="full", two_column=False, name_tag=""):
         if os.path.exists(district_summary_path) and os.path.exists(
             f"{FIGURES_DIR}/07_bristol_district_map.png"
         ):
+            with open(district_summary_path, newline='') as f:
+                district_rows = list(csv.DictReader(f))
+            lo_d = min(district_rows, key=lambda r: float(r['predicted_positive_rate']))
+            hi_d = max(district_rows, key=lambda r: float(r['predicted_positive_rate']))
             p_map = doc.add_paragraph()
             p_map.add_run(
-                "Predicted rate varies by district (Fig. 9), from BS1 (3.5%) to BS15 (21.9%)."
+                f"Predicted rate varies by district (Fig. 9), from {lo_d['district']} "
+                f"({float(lo_d['predicted_positive_rate']):.1%}) to {hi_d['district']} "
+                f"({float(hi_d['predicted_positive_rate']):.1%})."
             )
             add_figure(doc,
                 f"{FIGURES_DIR}/07_bristol_district_map.png",
@@ -1574,11 +1599,16 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "policymaker, while XGBoost's gain-based importances skew toward high-cardinality "
             "features and are harder to defend in plain language."
         )
-    if safe:
+    xgb_row = next((r for r in comparison_rows if r['Model'] == 'XGBoost'), None) if comparison_rows else None
+    rf_row = next((r for r in comparison_rows if r['Model'] == 'Random Forest'), None) if comparison_rows else None
+    if safe and xgb_row and rf_row:
+        xgb_cv = xgb_row['CV ROC-AUC'].split(' +/- ')[0]
+        rf_cv = rf_row['CV ROC-AUC'].split(' +/- ')[0]
         p_xgb = doc.add_paragraph()
         p_xgb.add_run(
-            "XGBoost led narrowly under nested cross-validation (0.9873 ROC-AUC against Random "
-            "Forest's 0.9858), then lost narrowly on the held-out years (0.9694 against 0.9705). "
+            f"XGBoost led narrowly under nested cross-validation ({xgb_cv} ROC-AUC against Random "
+            f"Forest's {rf_cv}), then lost narrowly on the held-out years "
+            f"({xgb_row['Test ROC-AUC']} against {rf_row['Test ROC-AUC']}). "
             "This is why I picked Random Forest as the main model in the first place: bagging "
             "trades some training-set fit for lower variance (Breiman, 2001), and that is "
             "exactly the kind of thing that would hold up on data XGBoost had never seen. I "
@@ -1590,11 +1620,12 @@ def build_report(mode="full", two_column=False, name_tag=""):
         fm.add(p_xgb,
             "Positive rate falls from 21.7% to 10.8% across the temporal split."
         )
-    else:
+    elif xgb_row and rf_row:
         doc.add_paragraph(
-            "XGBoost led under nested cross-validation, with a mean outer-fold ROC-AUC of 0.9873 "
-            "against Random Forest's 0.9858, and then lost on the held-out 2025-2026 years, "
-            "0.9694 against 0.9705. "
+            f"XGBoost led under nested cross-validation, with a mean outer-fold ROC-AUC of "
+            f"{xgb_row['CV ROC-AUC'].split(' +/- ')[0]} against Random Forest's "
+            f"{rf_row['CV ROC-AUC'].split(' +/- ')[0]}, and then lost on the held-out 2025-2026 "
+            f"years, {xgb_row['Test ROC-AUC']} against {rf_row['Test ROC-AUC']}. "
             "This is why Random Forest was the main model in the first place, not just the "
             "eventual winner. Bagging trades a little training-set fit for lower variance "
             "(Breiman, 2001), and that is exactly what would let it hold up better on a test "
@@ -1641,6 +1672,22 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "as the training window expands one year at a time.",
             two_column=two_column, dense=False
         )
+    doc.add_heading("7.4 Note on Scaling Up: From Laptop to Cloud", level=2)
+    p_kaggle = doc.add_paragraph()
+    p_kaggle.add_run(
+        "Everything above trains on close to 1 million records, not the 200,000 used for "
+        "exploration in Section 3.1, and that jump happened on Kaggle's free cloud notebooks, "
+        "not my own machine: a nested search across four models at that size needs more memory "
+        "and sustained CPU time than a laptop gives, and the full 7.25 million eligible records "
+        "never fit as a single in-memory table on the hardware I had. Two things from that move "
+        "are worth stating plainly. The chosen hyperparameters barely changed between the "
+        "200,000-record and 1-million-record samples, the same settings won for both Random "
+        "Forest and XGBoost at both scales, reassuring but only one data point, not proof the "
+        "pattern holds everywhere. And the Kaggle environment used a different scikit-learn "
+        "version to this machine; the saved preprocessing pipeline failed to load locally until "
+        "the versions matched exactly, a real reproducibility risk worth pinning explicitly for "
+        "anyone rerunning this later, not a one-off inconvenience."
+    )
     doc.add_heading("8. Limitations", level=1)
     doc.add_paragraph("There are five main limitations.")
     if safe:
@@ -1650,10 +1697,11 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "engineered from the same unreliable free-text description fields.",
             "Target simplification. The binary target lumps very different properties together: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
-            "Sample and time coverage. This uses 200,000 of 7.25 million eligible records, and "
-            "Section 7's walk-forward check refits on smaller samples with the main model's "
-            "existing settings rather than a fresh search each time, so it shows direction, not "
-            "a confirmed final score for every year.",
+            "Sample and time coverage. The main model uses just under 1 million of 7.25 million "
+            "eligible training records (Section 7.4), still short of the full register. "
+            "Section 7's walk-forward check refits on smaller samples again, with the main "
+            "model's existing settings rather than a fresh search each time, so it shows "
+            "direction, not a confirmed final score for every year.",
             "No location data. The model uses no geographic input, so it cannot pick up local "
             "factors like climate, fuel poverty, or regional building practice.",
             "Recall on flats. The threshold fix in Section 5.6 closes the gap but was tuned and "
@@ -1670,12 +1718,13 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Target simplification. The binary target collapses heterogeneous properties: a "
             "20-point gap in a rural solid-wall property has different policy implications from "
             "the same gap in an urban flat.",
-            "Sample and time coverage. This analysis uses a sample of 200,000 records rather "
-            "than the full 7.25 million training records, and Section 7's walk-forward check, "
-            "while finding no decline across five years, refits on smaller samples with the "
-            "main model's existing settings rather than a fresh nested-CV search per fold, that "
-            "would take far longer to run than this project's time allowed. So both results are "
-            "evidence of direction, not a confirmed, fully-tuned final score.",
+            "Sample and time coverage. The final models train on just under 1 million of 7.25 "
+            "million eligible training records (Section 7.4), a large jump on the 200,000-record "
+            "exploratory sample but still short of the full register. Section 7's walk-forward "
+            "check, while finding no decline across five years, refits on smaller samples with "
+            "the main model's existing settings rather than a fresh nested-CV search per fold, "
+            "that would take far longer to run than this project's time allowed. So both results "
+            "are evidence of direction, not a confirmed, fully-tuned final score.",
             "No location data. The model uses no geographic input at all, not even region, so it "
             "cannot pick up local factors such as climate, fuel poverty, or regional building "
             "practice. Section 6 shows this does not stop it working on a single city, but it "
@@ -1791,8 +1840,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "walking the training window forward across five years with the same result. "
             "Current efficiency score, current rating, property type, and wall type drive the "
             "predictions, and all four line up with what retrofit policy already assumes. None of "
-            "this is final: EPC data-quality problems and a 200,000-record sample rather than the "
-            "full 7.25 million eligible records (Section 8) mean these are credible estimates, "
+            "this is final: EPC data-quality problems and a training sample short of the full "
+            "7.25 million eligible records (Section 8) mean these are credible estimates, "
             "not the last word."
         )
 

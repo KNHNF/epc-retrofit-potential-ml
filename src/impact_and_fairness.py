@@ -31,8 +31,21 @@ MIN_GROUP = 300          # below this a per-group rate is too noisy to report
 
 
 def load():
-    te = pd.read_parquet(f"{DATA_DIR}/epc_test_sample_50k.parquet")
-    te = te.reset_index(drop=True)
+    # test_meta.csv holds the exact 199,682-row order that X_test.npy / rf_test_preds.npy
+    # were built from (saved alongside them in notebook 02), but only the columns the
+    # model's fairness slice needs (UPRN, region, age band, property type, tenure). The
+    # cost/CO2/rating columns used below live in the full test parquet instead, matched
+    # back in by UPRN then reordered to match test_meta's row order, not the parquet's.
+    meta = pd.read_csv(f"{DATA_DIR}/test_meta.csv")
+    meta["UPRN"] = meta["UPRN"].astype(str)
+    full = pd.read_parquet(f"{DATA_DIR}/epc_test_full.parquet")
+    full["UPRN"] = full["UPRN"].astype(str)
+    extra_cols = ["UPRN", "CURRENT_ENERGY_RATING", "HEATING_COST_CURRENT",
+                  "HEATING_COST_POTENTIAL", "CO2_EMISSIONS_CURRENT",
+                  "CO2_EMISSIONS_POTENTIAL", "RETROFIT_POTENTIAL"]
+    te = meta.merge(full[extra_cols], on="UPRN", how="left")
+    assert len(te) == len(meta), "UPRN match dropped or duplicated rows"
+
     te["pred"] = np.load(f"{DATA_DIR}/rf_test_preds.npy")
     te["proba"] = np.load(f"{DATA_DIR}/rf_test_probs.npy")
     te["cost_saving"] = te.HEATING_COST_CURRENT - te.HEATING_COST_POTENTIAL

@@ -2,6 +2,10 @@
 data/raw/
 data/processed/
 
+# Kaggle staging: zips and downloaded outputs used to move the 1M-record
+# run on and off Kaggle, includes a 2GB model pickle, never belongs in git.
+report/kaggle/
+
 # Python
 __pycache__/
 *.pyc

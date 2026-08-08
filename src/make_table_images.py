@@ -87,6 +87,12 @@ def render_comparison_table():
     best_model = max(rows, key=lambda r: float(r["Test ROC-AUC"]))["Model"]
     cell_text = [[r[k] for k in src_keys] for r in rows]
 
+    # Bold the actual best value per column, not every significant column on
+    # whichever row wins overall: the overall winner is not necessarily best
+    # on every individual metric (Random Forest wins ROC-AUC here but has the
+    # lowest recall of the four models compared).
+    best_per_col = {k: max(float(r[k]) for r in rows) for k in significant_keys}
+
     n_rows = len(rows) + 1
     fig, ax = plt.subplots(figsize=(9.5, 0.55 * n_rows))
     ax.axis("off")
@@ -101,9 +107,12 @@ def render_comparison_table():
         if row == 0:
             cell.set_facecolor(HEADER_BG)
             cell.set_text_props(color="white", fontweight="bold")
-        elif rows[row - 1]["Model"] == best_model:
-            cell.set_facecolor(WINNER_BG)
-            if src_keys[col] in significant_keys:
+        else:
+            r = rows[row - 1]
+            if r["Model"] == best_model:
+                cell.set_facecolor(WINNER_BG)
+            key = src_keys[col]
+            if key in significant_keys and float(r[key]) == best_per_col[key]:
                 cell.set_text_props(fontweight="bold")
     _apply_booktabs_style(ax, tbl, n_rows=n_rows)
 
