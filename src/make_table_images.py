@@ -79,10 +79,10 @@ def render_comparison_table():
     headers = ["Model", "Accuracy", "Recall", "Precision", "F1", "ROC-AUC", "PR-AUC"]
     src_keys = ["Model", "Test Accuracy", "Test Recall", "Test Precision",
                 "Test F1-macro", "Test ROC-AUC", "Test PR-AUC"]
-    # Bolded on the winning row below: accuracy is deliberately excluded,
-    # the report's own argument is that accuracy is not the metric doing
-    # the real work here, the table shouldn't visually reward it either.
-    significant_keys = {"Test Recall", "Test F1-macro", "Test ROC-AUC", "Test PR-AUC"}
+    # Bolded wherever a model has the actual best value in that column,
+    # across every numeric column including accuracy.
+    significant_keys = {"Test Accuracy", "Test Recall", "Test Precision",
+                         "Test F1-macro", "Test ROC-AUC", "Test PR-AUC"}
 
     best_model = max(rows, key=lambda r: float(r["Test ROC-AUC"]))["Model"]
     cell_text = [[r[k] for k in src_keys] for r in rows]

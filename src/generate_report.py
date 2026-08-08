@@ -458,13 +458,13 @@ COMPARISON_HEADER_DISPLAY = {
     'Test ROC-AUC': 'ROC-AUC',
     'Test PR-AUC': 'PR-AUC',
 }
-# Bolded on the winning row: the metrics that actually decide this report's
-# conclusions under class imbalance. Accuracy is deliberately excluded, even
-# on the winning row, the report's own argument is that accuracy is not the
-# metric doing the real work here (Section 4), so the table shouldn't
-# visually reward it either.
+# Bolded wherever a model has the actual best value in that column, across
+# every numeric column including accuracy: a reader scanning the table wants
+# to see who wins each metric, not just the ones the report's own argument
+# favours.
 COMPARISON_SIGNIFICANT_COLS = {
-    'Test Recall', 'Test F1-macro', 'Test ROC-AUC', 'Test PR-AUC',
+    'Test Accuracy', 'Test Recall', 'Test Precision', 'Test F1-macro',
+    'Test ROC-AUC', 'Test PR-AUC',
 }
 COMPARISON_COL_WIDTHS_IN = {
     # Sum must stay under ~6.2in (the floating table box width in two-column
@@ -958,8 +958,8 @@ def build_report(mode="full", two_column=False, name_tag=""):
     doc.add_heading("4. Algorithm Selection and Methodology", level=1)
     if safe:
         doc.add_paragraph(
-            "Of the 41 raw fields, 29 go into the model: 14 numeric, nine ratings as ordered "
-            "scales, and six category fields, giving 51 inputs once split into yes/no columns."
+            "Of the 41 raw fields, 29 go into the model: 14 numeric, 9 ratings as ordered "
+            "scales, and 6 category fields, giving 51 inputs once split into yes/no columns."
         )
 
         p_lr = doc.add_paragraph()
@@ -997,24 +997,31 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_svm.add_run("kNN").bold = True
         p_svm.add_run(
             " are reference points only. SVM tests whether a widest-margin boundary beats "
-            "Logistic Regression's, with scores turned into probabilities by a fitted sigmoid "
-            "(Platt calibration) (Cortes and Vapnik, 1995). kNN was never fitted: beyond roughly "
-            "10 to 15 columns nearest and farthest neighbours end up almost equally far away "
-            "(Beyer et al., 1999), and this has 51. That assumes continuous measurements and over "
-            "half of mine are yes/no, so it is a reason to skip kNN, not proof it would fail."
+            "Logistic Regression's, with a calibration step turning its scores into "
+            "probabilities. kNN was never fitted: past around 10 to 15 columns, the nearest and "
+            "farthest neighbour end up almost equally far away, and this has 51, most of them "
+            "yes/no rather than continuous, so that is a reason to skip kNN, not proof it would "
+            "fail."
+        )
+        fm.add(p_svm,
+            "Probability calibration by a fitted sigmoid, Platt calibration (Cortes and Vapnik, "
+            "1995). The curse-of-dimensionality argument for skipping kNN follows Beyer et al. "
+            "(1999)."
         )
         p_cv = doc.add_paragraph()
         p_cv.add_run(
-            "All models weight classes inversely to frequency. I report F1-macro and ROC-AUC, not "
-            "accuracy: majority guessing scores 78.3% free. Nested cross-validation (5-fold "
-            "outer, 3-fold inner) keeps the folds that pick settings separate from those that "
-            "report the score (Varma and Simon, 2006), tuning each model's own settings on the "
-            "inner loop. Final numbers use the 2025-2026 holdout, in Python with scikit-learn "
-            "(Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016)."
+            "Every model is weighted so the rare class counts as much as the common one. I "
+            "report F1-macro and ROC-AUC rather than accuracy, since just guessing the majority "
+            "class alone would score 78.3%, without the model learning anything real. Nested "
+            "cross-validation (5-fold outer, 3-fold inner) keeps the folds that choose settings "
+            "separate from the folds that report the score, tuning each model's own settings on "
+            "the inner loop. Final numbers use the 2025-2026 holdout, built in Python."
         )
         fm.add(p_cv,
-            "Chosen settings: C=10 for Logistic Regression, 30% of features per split for "
-            "Random Forest, depth 6 at learning rate 0.1 for XGBoost."
+            "Nested cross-validation split rationale follows Varma and Simon (2006). Built with "
+            "scikit-learn (Pedregosa et al., 2011) and XGBoost (Chen and Guestrin, 2016). Chosen "
+            "settings: C=10 for Logistic Regression, 30% of features per split for Random "
+            "Forest, depth 6 at learning rate 0.1 for XGBoost."
         )
     else:
         p_impl = doc.add_paragraph()
@@ -1212,7 +1219,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
     add_figure(doc,
         f"{FIGURES_DIR}/all_models_roc_pr.png",
         "Fig. 6. ROC curves (left) and precision-recall curves (right), all four models, test set.",
-        two_column=two_column, dense=True
+        width=6.3, two_column=two_column, dense=True
     )
 
     doc.add_heading("5.2 Statistical Significance: McNemar's Test", level=2)
@@ -1561,11 +1568,14 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_impact = doc.add_paragraph()
         if impact:
             p_impact.add_run(
-                "Is rating-band screening enough? Not really. 89.2% of D-G homes miss the "
-                "threshold, so a band-only shortlist is mostly noise. Ranking the same survey "
-                f"budget by model score instead finds {impact['uplift']:.1f} times as many real "
-                "retrofit candidates, and the same multiple in annual heating-cost and CO2 "
-                "saving, for no extra survey effort."
+                "Ranking by model score beats screening on rating band alone, for the same "
+                f"survey effort. "
+            ).bold = True
+            p_impact.add_run(
+                "89.2% of D-G homes miss the 20-point threshold, so a band-only shortlist is "
+                f"mostly noise. Ranking the same survey budget by model score instead finds "
+                f"{impact['uplift']:.1f} times as many real retrofit candidates, and roughly the "
+                "same multiple in annual heating-cost and CO2 saving, for no extra visits."
             )
             fm.add(p_impact,
                 f"Surveying {impact['surveyed']:,} homes (10% of eligible stock), model ranking "
@@ -1606,16 +1616,20 @@ def build_report(mode="full", two_column=False, name_tag=""):
         rf_cv = rf_row['CV ROC-AUC'].split(' +/- ')[0]
         p_xgb = doc.add_paragraph()
         p_xgb.add_run(
-            f"XGBoost led narrowly under nested cross-validation ({xgb_cv} ROC-AUC against Random "
-            f"Forest's {rf_cv}), then lost narrowly on the held-out years "
+            f"XGBoost led narrowly during tuning ({xgb_cv} ROC-AUC against Random Forest's "
+            f"{rf_cv}), then lost narrowly on the real test years "
             f"({xgb_row['Test ROC-AUC']} against {rf_row['Test ROC-AUC']}). "
-            "This is why I picked Random Forest as the main model in the first place: bagging "
-            "trades some training-set fit for lower variance (Breiman, 2001), and that is "
-            "exactly the kind of thing that would hold up on data XGBoost had never seen. I "
-            "cannot prove that is the actual cause, only that it fits. The temporal shift also "
-            "means future stock has proportionally fewer high-retrofit candidates; ranking "
-            "still holds, but the threshold needs recalibrating annually against Fig. 8, "
-            "biased toward recall."
+        )
+        p_xgb.add_run(
+            "That flip is likely why Random Forest held up better on data it had not seen. "
+        ).bold = True
+        p_xgb.add_run(
+            "Random Forest averages many trees together, which trades a small amount of fit on "
+            "the training data for more stability later (Breiman, 2001), exactly the pattern "
+            "seen here. I cannot prove that is the real cause, only that it fits. Future stock "
+            "will likely have fewer high-retrofit homes overall, so the ranking still works, "
+            "but the cut-off point should be checked yearly against Fig. 8 and kept generous "
+            "toward recall."
         )
         fm.add(p_xgb,
             "Positive rate falls from 21.7% to 10.8% across the temporal split."
