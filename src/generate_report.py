@@ -986,22 +986,22 @@ def build_report(mode="full", two_column=False, name_tag=""):
         p_rf = doc.add_paragraph()
         p_rf.add_run("Random Forest").bold = True
         p_rf.add_run(
-            " is the main model. Averaging many trees, each grown on a random subset of rows and "
-            "columns (bagging), cuts variance without adding bias (Breiman, 2001) and handles the "
-            "correlated pairs. A single Decision Tree is skipped because it overfits (Breiman et "
-            "al., 1984). For importance I shuffle one column at a time and measure the score drop, "
-            "rather than the impurity score, which favours columns with many distinct values "
-            "whether or not they predict well (Strobl et al., 2007)."
+            " is the main model: its bagged variance reduction (Breiman, 2001) suits the "
+            "correlated pairs from Section 3.1 better than a linear model's unstable "
+            "coefficients would. A single Decision Tree is skipped, it overfits on its own "
+            "(Breiman et al., 1984). Importance uses permutation, not impurity, since impurity "
+            "favours high-cardinality columns regardless of whether they actually predict well "
+            "(Strobl et al., 2007), and property type and wall type here are exactly that kind "
+            "of column."
         )
 
         p_xgb = doc.add_paragraph()
         p_xgb.add_run("XGBoost").bold = True
         p_xgb.add_run(
-            " is the second tree model: does the Random Forest result come from bagging, or "
-            "from tree ensembles generally? It grows trees in sequence, each correcting the last "
-            "ones' errors, trading variance reduction for lower bias (Chen and Guestrin, 2016). "
-            "Minority-class weighting handles the imbalance. I expected it to win; Section 7 "
-            "covers why it did not."
+            " is the second tree model, included to separate whether Random Forest's result "
+            "comes from bagging specifically or tree ensembles generally (Chen and Guestrin, "
+            "2016). Minority-class weighting handles the imbalance the same way. I expected it "
+            "to win; Section 7 covers why it did not."
         )
 
         p_svm = doc.add_paragraph()
