@@ -1,7 +1,9 @@
 pandas>=2.0
 pyarrow>=14.0          # parquet engine for the processed samples
 numpy>=1.24
-scikit-learn>=1.3
+scikit-learn==1.6.1    # pinned: the ~1M-row model was trained with this exact version on
+                       # Kaggle, and a saved preprocessor/model pickle from one sklearn
+                       # version can fail or silently misbehave on another (Section 7.1)
 matplotlib>=3.7
 seaborn>=0.12
 xgboost>=2.0

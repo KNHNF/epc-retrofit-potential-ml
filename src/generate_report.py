@@ -1690,17 +1690,18 @@ def build_report(mode="full", two_column=False, name_tag=""):
     p_kaggle = doc.add_paragraph()
     p_kaggle.add_run(
         "Everything above trains on close to 1 million records, not the 200,000 used for "
-        "exploration in Section 3.1, and that jump happened on Kaggle's free cloud notebooks, "
-        "not my own machine: a nested search across four models at that size needs more memory "
-        "and sustained CPU time than a laptop gives, and the full 7.25 million eligible records "
-        "never fit as a single in-memory table on the hardware I had. Two things from that move "
-        "are worth stating plainly. The chosen hyperparameters barely changed between the "
-        "200,000-record and 1-million-record samples, the same settings won for both Random "
-        "Forest and XGBoost at both scales, reassuring but only one data point, not proof the "
-        "pattern holds everywhere. And the Kaggle environment used a different scikit-learn "
-        "version to this machine; the saved preprocessing pipeline failed to load locally until "
-        "the versions matched exactly, a real reproducibility risk worth pinning explicitly for "
-        "anyone rerunning this later, not a one-off inconvenience."
+        "exploration in Section 3.1, moved to Kaggle's cloud notebooks since a nested search "
+        "across four models at that size needs more memory and sustained CPU time than my own "
+        "machine gives, and the full 7.25 million eligible records never fit as a single table "
+        "on it at all. Two findings came from that move. The chosen hyperparameters barely "
+        "changed between the two sample sizes, reassuring but only one data point. And the "
+        "Kaggle environment used a different scikit-learn version: the saved preprocessing "
+        "pipeline would not load locally until the versions matched exactly, a real "
+        "reproducibility risk worth pinning explicitly."
+    )
+    fm.add(p_kaggle,
+        "The same settings won for both Random Forest and XGBoost at both the 200,000-record "
+        "and 1-million-record scales."
     )
     doc.add_heading("8. Limitations", level=1)
     doc.add_paragraph("There are five main limitations.")

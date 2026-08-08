@@ -5,9 +5,11 @@ that can run entirely client-side in a browser via onnxruntime-web, no backend.
 
 Run this on the SAME machine/environment that trained the models (matching
 scikit-learn version). preprocessor.pkl and rf_final_model.pkl were saved with
-scikit-learn 1.9.0; loading them with a different version can silently produce
-wrong results (sklearn warns about this itself), so don't run this somewhere
-the version doesn't match without re-checking.
+scikit-learn 1.6.1 (the version on Kaggle, where the ~1M-row training run
+happened); loading them with a different version can silently produce wrong
+results (sklearn warns about this itself), so check the version actually
+installed before running this rather than trusting this comment as still
+current, it will go stale again the next time the model is retrained.
 
 Why this isn't a straight pickle-to-ONNX conversion, and why there is no
 imputer in this export pipeline at all:
