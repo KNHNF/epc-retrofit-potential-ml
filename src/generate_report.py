@@ -820,7 +820,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
         "in Section 5 onward train on a much larger stratified sample, just under 1 million "
         "records, assembled on Kaggle's cloud notebooks rather than locally, since a sample "
         "nearly five times the exploratory one needs more memory and CPU time than a laptop "
-        "comfortably gives (Section 7.4 explains the choice and what it changed). Splitting by "
+        "comfortably gives (Section 7.1 explains the choice and what it changed). Splitting by "
         "time rather than at random stops the model learning from properties assessed after the "
         "ones it predicts. Where a property was assessed more than once (matched on UPRN), I "
         "keep the most recent."
@@ -1387,7 +1387,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             )
 
     # 7. Real-World Application: A Bristol Case Study
-    doc.add_heading("6. Real-World Application: A Bristol Case Study", level=1)
+    doc.add_heading("6. Real-World Application: Bristol, Manchester, and Leeds", level=1)
     if bristol_rows and bristol_summary:
         n = bristol_summary['n_bristol_test_properties']
         acc = bristol_summary['bristol_accuracy']
@@ -1686,7 +1686,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "as the training window expands one year at a time.",
             two_column=two_column, dense=False
         )
-    doc.add_heading("7.4 Note on Scaling Up: From Laptop to Cloud", level=2)
+    doc.add_heading("7.1 Note on Scaling Up: From Laptop to Cloud", level=2)
     p_kaggle = doc.add_paragraph()
     p_kaggle.add_run(
         "Everything above trains on close to 1 million records, not the 200,000 used for "
@@ -1712,7 +1712,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "Target simplification. The binary target lumps very different properties together: a "
             "20-point gap means different things in a rural solid-wall home versus an urban flat.",
             "Sample and time coverage. The main model uses just under 1 million of 7.25 million "
-            "eligible training records (Section 7.4), still short of the full register. "
+            "eligible training records (Section 7.1), still short of the full register. "
             "Section 7's walk-forward check refits on smaller samples again, with the main "
             "model's existing settings rather than a fresh search each time, so it shows "
             "direction, not a confirmed final score for every year.",
@@ -1733,7 +1733,7 @@ def build_report(mode="full", two_column=False, name_tag=""):
             "20-point gap in a rural solid-wall property has different policy implications from "
             "the same gap in an urban flat.",
             "Sample and time coverage. The final models train on just under 1 million of 7.25 "
-            "million eligible training records (Section 7.4), a large jump on the 200,000-record "
+            "million eligible training records (Section 7.1), a large jump on the 200,000-record "
             "exploratory sample but still short of the full register. Section 7's walk-forward "
             "check, while finding no decline across five years, refits on smaller samples with "
             "the main model's existing settings rather than a fresh nested-CV search per fold, "
