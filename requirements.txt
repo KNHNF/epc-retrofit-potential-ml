@@ -11,3 +11,4 @@ jupyter>=1.0
 pytest>=7.0
 statsmodels>=0.14
 latex2mathml>=3.0
+python-docx>=1.0  # imported by src/generate_report.py; was missing, so a clean install could not build the report

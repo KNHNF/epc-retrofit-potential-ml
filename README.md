@@ -31,7 +31,13 @@ since a nested search across four models at that size needs more memory and CPU 
 comfortably gives.
 
 The split is temporal, not random. This matters: the positive class rate roughly halves from 21.7%
-in training to 10.8% in test, a real distribution shift that a random split would have hidden.
+in training to 10.8% in test, a distribution shift that a random split would have hidden.
+
+One caution on that shift. `src/00_prepare_data.py` keeps only the latest certificate per property
+(UPRN) and assigns it to the year it was lodged. So a property certified in 2022 and again in 2025
+appears only in the test set, and the 2020-2024 training years contain only properties not
+re-certified later. Whether this selection contributes to the drop in positive rate has not been
+checked. Rows with no UPRN are dropped, and how many that removes has not been checked either.
 
 ### Getting the data
 
@@ -140,10 +146,35 @@ random split.
 
 Worked through step by step in `05_Comparison_Evaluation.ipynb` and `src/impact_and_fairness.py`.
 
-## How to run
+## Install and try it offline
+
+Python 3.13 with the pinned requirements was used to check the steps below.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Run the tests. They use small synthetic files, need no EPC data and no network:
+
+```bash
+pytest tests/
+```
+
+Run the offline example. It makes synthetic EPC-shaped data, then runs the real cleaning and target
+code from `src/preprocessing.py`, a date-based train/test split, nested cross-validation on the
+training years only (preprocessing inside the cross-validation), and a final prediction on the later
+years. It prints structure checks, not model scores, because the data is random numbers and says
+nothing about real homes:
+
+```bash
+python examples/offline_demo.py
+```
+
+## How to run on real data
 
 ```
-pip install -r requirements.txt
 python src/00_prepare_data.py        # builds data/processed/ from raw EPC CSVs
 ```
 
@@ -177,21 +208,52 @@ saved `.pkl`/`.csv` metrics and writes the numbers into the prose, so the docume
 figure that disagrees with the run that produced it. Change the data, rebuild, every number
 updates.
 
+Note on the test and helper modules: `src/preprocessing.py` and `src/evaluation.py` are small helpers
+with unit tests. The notebooks do not import them; each notebook builds its own pipeline inline
+(notebook 02 for preprocessing, 03 to 05 for evaluation). The tests therefore protect the helpers,
+the data preparation script and the offline example, not the notebook code that produced the
+results.
+
 Note (Windows): scikit-learn's `n_jobs=-1` can crash with a joblib `PicklingError` on this platform
 when nested inside another parallel call, or when there isn't enough free disk space for its temp
 memmap files. On Kaggle's Linux containers the same class of problem shows up differently, as a
 "No space left on device" error from joblib memmapping large arrays across worker processes; drop
 to `n_jobs=1` if that happens. See `docs/IMPLEMENTATION_NOTES.md` for more on decisions like this.
 
+## Limits
+
+* The Results tables come from notebook runs on Kaggle. The raw data, the saved models and the
+  metric files are not in this repository, so the figures cannot be reproduced from a fresh clone
+  without downloading the EPC data and repeating the runs. They have not been re-checked since.
+* The notebooks were not re-run when the tests were written. The only notebook change was fixing two
+  cells in `05_Comparison_Evaluation.ipynb` that did not parse.
+* The target is a model-based label: a gap of 20 or more points between the certificate's current
+  and potential score, for homes rated D to G. It is not a measured saving. The cost and CO2 figures
+  are the same kind of upper bound.
+* Nested cross-validation uses random stratified folds inside 2020-2024, so it does not test
+  forward-in-time performance. The 2025-2026 test set and the walk-forward script do that.
+* In notebook 02 the preprocessing (imputation, scaling, encoding) is fitted on the whole training
+  set before the cross-validation loops in notebooks 03 to 05. The effect on the scores has not been
+  measured. `examples/offline_demo.py` shows the alternative with preprocessing inside the folds.
+* The 2025-2026 test set is also used for the McNemar tests, calibration, the subgroup analysis and
+  choosing the flat threshold. The threshold checks split the flats (at random, and 2025 against
+  2026) but they all draw on the same test period, so they are not a second untouched holdout.
+* `AGE_BAND_ORDER` in `src/preprocessing.py` maps the "England and Wales: ..." age band labels up to
+  "2012 onwards". Whether the 2025-2026 certificates use newer labels that fall back to the median
+  has not been checked against the data.
+* No model is saved or served, and there is no continuous integration yet.
+
 ## Structure
 
 ```
-02_Main_Project/
+epc-retrofit-potential-ml/
 ├── data/
 │   ├── raw/                          EPC CSVs, gitignored (too large, contains address data)
 │   ├── external/                     Small reference data that is tracked (postcode boundaries)
 │   └── processed/                    Cleaned/engineered data, model outputs, gitignored
 ├── notebooks/                        01 through 05, run in order
+├── examples/
+│   └── offline_demo.py               Synthetic-data run of the method, no downloads
 ├── src/
 │   ├── 00_prepare_data.py            Raw CSVs to train/test parquet files
 │   ├── data_loader.py
@@ -210,13 +272,14 @@ to `n_jobs=1` if that happens. See `docs/IMPLEMENTATION_NOTES.md` for more on de
 │   └── generate_report.py            Builds the .docx from saved metrics
 ├── docs/
 │   └── IMPLEMENTATION_NOTES.md       The "why" behind non-obvious decisions in src/
-├── tests/
+├── tests/                            pytest suite, synthetic data only
 ├── report/
 │   ├── figures/
 │   └── *.docx                        Generated, gitignored
 ├── references/
 │   ├── references.bib
 │   └── annotated_bibliography.md
+├── cleanup_data.py                   One-off script that deletes old raw CSVs (asks first)
 ├── requirements.txt
 └── .gitignore
 ```

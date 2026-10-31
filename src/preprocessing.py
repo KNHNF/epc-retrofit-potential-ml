@@ -48,19 +48,35 @@ def load_sample(filepath: str, n: int = 200_000, seed: int = 42) -> pd.DataFrame
     return df
 
 
+def _require_columns(df: pd.DataFrame, columns: list, func: str) -> None:
+    """Raise a ValueError naming the missing columns, instead of a bare KeyError."""
+    missing = [c for c in columns if c not in df.columns]
+    if missing:
+        raise ValueError(f"{func}: missing required column(s) {missing}")
+
+
 def drop_duplicates_by_uprn(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep most recent certificate per UPRN (unique property reference number)."""
+    """
+    Keep most recent certificate per UPRN (unique property reference number).
+
+    Rows with a missing UPRN cannot be matched to a property, so they are all kept
+    rather than collapsed into one. If either column is absent the frame is returned
+    unchanged.
+    """
     if 'UPRN' not in df.columns or 'LODGEMENT_DATE' not in df.columns:
         return df
     df = df.copy()
     df['LODGEMENT_DATE'] = pd.to_datetime(df['LODGEMENT_DATE'], errors='coerce')
     df = df.sort_values('LODGEMENT_DATE', ascending=False)
-    df = df.drop_duplicates(subset='UPRN', keep='first')
-    return df
+    no_uprn = df['UPRN'].isna()
+    deduped = df[~no_uprn].drop_duplicates(subset='UPRN', keep='first')
+    return pd.concat([deduped, df[no_uprn]]).sort_index()
 
 
 def filter_valid_records(df: pd.DataFrame) -> pd.DataFrame:
     """Remove records with invalid energy ratings or out-of-range efficiency scores."""
+    _require_columns(df, ['CURRENT_ENERGY_RATING', 'POTENTIAL_ENERGY_RATING', 'PROPERTY_TYPE'],
+                     'filter_valid_records')
     df = df.copy()
     df = df[df['CURRENT_ENERGY_RATING'].isin(VALID_ENERGY_RATINGS)]
     df = df[df['POTENTIAL_ENERGY_RATING'].isin(VALID_ENERGY_RATINGS)]
@@ -81,9 +97,13 @@ def filter_valid_records(df: pd.DataFrame) -> pd.DataFrame:
 
 def encode_age_band(df: pd.DataFrame) -> pd.DataFrame:
     """Map CONSTRUCTION_AGE_BAND to approximate midpoint year (ordinal numeric)."""
+    _require_columns(df, ['CONSTRUCTION_AGE_BAND'], 'encode_age_band')
     df = df.copy()
     df['AGE_BAND_YEAR'] = df['CONSTRUCTION_AGE_BAND'].map(AGE_BAND_ORDER)
-    # Fill unmapped values (unknown, NO DATA!, etc.) with median
+    # Fill unmapped values (unknown, NO DATA!, etc.) with the median of this frame.
+    # The median is taken from whatever frame is passed in, so call this on the training
+    # data only, or accept that a test frame gets its own median. If no value maps at
+    # all the column stays NaN.
     median_year = df['AGE_BAND_YEAR'].median()
     df['AGE_BAND_YEAR'] = df['AGE_BAND_YEAR'].fillna(median_year)
     return df
@@ -91,6 +111,7 @@ def encode_age_band(df: pd.DataFrame) -> pd.DataFrame:
 
 def extract_wall_type(df: pd.DataFrame) -> pd.DataFrame:
     """Extract broad wall type from WALLS_DESCRIPTION string: cavity, solid, other."""
+    _require_columns(df, ['WALLS_DESCRIPTION'], 'extract_wall_type')
     df = df.copy()
     desc = df['WALLS_DESCRIPTION'].str.lower().fillna('')
     df['WALL_TYPE'] = 'other'
@@ -103,7 +124,11 @@ def engineer_target(df: pd.DataFrame, gap_threshold: int = 20) -> pd.DataFrame:
     """
     Create binary target: 1 if property is D-G rated AND efficiency gap >= gap_threshold.
     This identifies properties with the most headroom for retrofit improvement.
+    A missing efficiency score gives a NaN gap, which is labelled 0 here; the data
+    preparation script drops such rows before this point.
     """
+    _require_columns(df, ['CURRENT_ENERGY_RATING', 'CURRENT_ENERGY_EFFICIENCY',
+                          'POTENTIAL_ENERGY_EFFICIENCY'], 'engineer_target')
     df = df.copy()
     low_rated = df['CURRENT_ENERGY_RATING'].isin(['D', 'E', 'F', 'G'])
     gap = df['POTENTIAL_ENERGY_EFFICIENCY'] - df['CURRENT_ENERGY_EFFICIENCY']
@@ -116,6 +141,11 @@ def build_feature_matrix(df: pd.DataFrame) -> tuple:
     """
     Select and encode features for modelling.
     Returns X (feature DataFrame) and y (target Series).
+
+    Small standalone helper, not the pipeline behind the reported results (that is the
+    scikit-learn ColumnTransformer in notebooks/02_Feature_Engineering.ipynb). Medians
+    and dummy columns come from the frame passed in, so call it once on the whole frame;
+    calling it separately on train and test gives inconsistent columns and imputation.
     """
     df = df.copy()
 

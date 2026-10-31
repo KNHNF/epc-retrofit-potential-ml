@@ -16,22 +16,36 @@ def evaluate_model(model, X_test, y_test, model_name: str = "Model") -> dict:
     """
     Run standard evaluation for a fitted classifier.
     Returns a dict of metrics and prints a summary.
+
+    y_prob holds predict_proba[:, 1] when the model has it, otherwise decision_function
+    scores (ranking only, enough for ROC-AUC), otherwise None and roc_auc is None.
+    The dict includes y_test so it can be passed straight to plot_roc_curves.
     """
     y_pred = model.predict(X_test)
-    y_prob = model.predict_proba(X_test)[:, 1] if hasattr(model, 'predict_proba') else None
+    if hasattr(model, 'predict_proba'):
+        y_prob = model.predict_proba(X_test)[:, 1]
+    elif hasattr(model, 'decision_function'):
+        y_prob = model.decision_function(X_test)
+    else:
+        y_prob = None
 
-    f1 = f1_score(y_test, y_pred, average='weighted')
+    f1_macro = f1_score(y_test, y_pred, average='macro', zero_division=0)
+    f1_weighted = f1_score(y_test, y_pred, average='weighted', zero_division=0)
     roc_auc = roc_auc_score(y_test, y_prob) if y_prob is not None else None
 
     print(f"\n{model_name} results")
-    print(classification_report(y_test, y_pred, target_names=['Low potential', 'High potential']))
-    if roc_auc:
+    print(classification_report(y_test, y_pred, labels=[0, 1],
+                                target_names=['Low potential', 'High potential'],
+                                zero_division=0))
+    if roc_auc is not None:
         print(f"ROC-AUC: {roc_auc:.4f}")
 
     return {
         'model_name': model_name,
-        'f1_weighted': f1,
+        'f1_macro': f1_macro,
+        'f1_weighted': f1_weighted,
         'roc_auc': roc_auc,
+        'y_test': y_test,
         'y_pred': y_pred,
         'y_prob': y_prob,
     }
@@ -72,6 +86,11 @@ def plot_roc_curves(results: list, title: str = "ROC curves"):
 def plot_feature_importances(model, feature_names: list, top_n: int = 15, title: str = "Feature importances"):
     """Plot top N feature importances from a tree-based model (RF, XGBoost)."""
     importances = model.feature_importances_
+    if len(feature_names) != len(importances):
+        raise ValueError(
+            f"feature_names has {len(feature_names)} entries but the model has "
+            f"{len(importances)} importances"
+        )
     indices = np.argsort(importances)[::-1][:top_n]
     top_features = [feature_names[i] for i in indices]
     top_values = importances[indices]

@@ -35,28 +35,38 @@ VALID_ENERGY_RATINGS = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
 VALID_PROPERTY_TYPES = ['House', 'Flat', 'Maisonette', 'Bungalow', 'Park home']
 
 
-def process_year_file(filepath: str, seen_uprns: set) -> pd.DataFrame:
+REQUIRED_COLUMNS = ['UPRN', 'LODGEMENT_DATE', 'CURRENT_ENERGY_RATING',
+                    'POTENTIAL_ENERGY_RATING', 'PROPERTY_TYPE',
+                    'CURRENT_ENERGY_EFFICIENCY', 'POTENTIAL_ENERGY_EFFICIENCY']
+
+
+def process_year_file(filepath: str, seen_uprns: set, chunksize: int = 100_000) -> pd.DataFrame:
     """
     Process a single year CSV file in chunks, clean, and filter.
-    seen_uprns is updated in-place.
+
+    Keeps the most recent certificate per UPRN within the file, and drops any UPRN
+    already in seen_uprns (a newer certificate exists in a later year's file).
+    seen_uprns is updated in-place, but only once the whole file has been read, so
+    the result does not depend on which chunk a certificate happens to fall in.
+    Raises ValueError if the file lacks a required column.
     """
     print(f"Processing {os.path.basename(filepath)}...")
     chunks = []
-    
+    seen_before = set(seen_uprns)   # UPRNs from later years only, frozen for this file
+
     # Read in chunks to prevent memory overload
-    chunksize = 100_000
     for chunk in pd.read_csv(filepath, encoding='latin-1', low_memory=False, chunksize=chunksize):
         # Convert all columns to uppercase to avoid case mismatches
         chunk.columns = chunk.columns.str.upper()
         
-        # Check that required columns exist
-        missing_cols = [c for c in ['UPRN', 'LODGEMENT_DATE', 'CURRENT_ENERGY_RATING', 
-                                    'POTENTIAL_ENERGY_RATING', 'PROPERTY_TYPE',
-                                    'CURRENT_ENERGY_EFFICIENCY', 'POTENTIAL_ENERGY_EFFICIENCY'] 
-                        if c not in chunk.columns]
+        # Check that required columns exist. Fail loudly: skipping the chunk would
+        # silently produce a smaller or empty dataset and still report success.
+        missing_cols = [c for c in REQUIRED_COLUMNS if c not in chunk.columns]
         if missing_cols:
-            print(f"Skipping chunk, missing columns: {missing_cols}")
-            continue
+            raise ValueError(
+                f"{os.path.basename(filepath)} is missing required columns {missing_cols}. "
+                f"Expected an EPC certificates CSV with these columns: {REQUIRED_COLUMNS}"
+            )
             
         # Select columns that are present
         cols_to_select = [c for c in COLUMNS_TO_KEEP if c in chunk.columns]
@@ -117,12 +127,11 @@ def process_year_file(filepath: str, seen_uprns: set) -> pd.DataFrame:
         # Drop duplicates within the chunk
         chunk = chunk.drop_duplicates(subset='UPRN', keep='first')
         
-        # Filter out records where UPRN has already been seen (newer record exists)
-        chunk = chunk[~chunk['UPRN'].isin(seen_uprns)]
-        
-        # Add new UPRNs to the seen set
-        seen_uprns.update(chunk['UPRN'].tolist())
-        
+        # Filter out records where UPRN appears in a later year's file (newer record exists).
+        # Deliberately not updating seen_uprns here: a UPRN seen in an earlier chunk of this
+        # same file must still compete on date with its other certificates in this file.
+        chunk = chunk[~chunk['UPRN'].isin(seen_before)]
+
         # Drop helper date column
         chunk = chunk.drop(columns=['LODGEMENT_DATE_DT'])
         
@@ -135,7 +144,8 @@ def process_year_file(filepath: str, seen_uprns: set) -> pd.DataFrame:
     # Final deduplication just in case
     df = df.sort_values('LODGEMENT_DATE', ascending=False)
     df = df.drop_duplicates(subset='UPRN', keep='first')
-    
+    seen_uprns.update(df['UPRN'].tolist())
+
     return df
 
 
@@ -145,14 +155,16 @@ def main():
     
     train_dfs = []
     test_dfs = []
-    
+    found_any = False
+
     for year in years:
         filename = f"certificates-{year}.csv"
         filepath = os.path.join(DATA_DIR, filename)
         if not os.path.exists(filepath):
             print(f"Warning: File {filename} not found, skipping.")
             continue
-            
+        found_any = True
+
         df_year = process_year_file(filepath, seen_uprns)
         if df_year.empty:
             continue
@@ -165,6 +177,13 @@ def main():
             train_dfs.append(df_year)
             print(f"Added {len(df_year):,} unique records from {year} to TRAIN set")
             
+    if not found_any:
+        raise FileNotFoundError(
+            f"No certificates-<year>.csv files found in {DATA_DIR}. "
+            "See 'Getting the data' in the README."
+        )
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     print("\nConcatenating train and test sets...")
     
     if test_dfs:

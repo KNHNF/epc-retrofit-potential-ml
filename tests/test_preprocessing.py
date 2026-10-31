@@ -6,6 +6,7 @@ Run with: pytest tests/
 
 import pandas as pd
 import numpy as np
+import pytest
 import sys
 import os
 
@@ -117,3 +118,44 @@ def test_build_feature_matrix_shape():
     assert X.shape[0] == len(df)
     assert len(y) == len(df)
     assert X.isnull().sum().sum() == 0
+
+
+def test_drop_duplicates_keeps_all_rows_with_missing_uprn():
+    # Missing UPRN cannot be matched to a property, so these must not collapse to one row.
+    df = make_sample_df()
+    df['UPRN'] = [None, None, 'B']
+    result = drop_duplicates_by_uprn(df)
+    assert len(result) == 3
+
+
+def test_filter_missing_column_gives_clear_error():
+    df = make_sample_df().drop(columns=['PROPERTY_TYPE'])
+    with pytest.raises(ValueError, match='PROPERTY_TYPE'):
+        filter_valid_records(df)
+
+
+def test_engineer_target_missing_column_gives_clear_error():
+    df = make_sample_df().drop(columns=['POTENTIAL_ENERGY_EFFICIENCY'])
+    with pytest.raises(ValueError, match='POTENTIAL_ENERGY_EFFICIENCY'):
+        engineer_target(df)
+
+
+def test_engineer_target_threshold_is_inclusive_and_d_to_g_only():
+    df = make_sample_df()
+    df['CURRENT_ENERGY_EFFICIENCY'] = [55, 55, 70]
+    df['POTENTIAL_ENERGY_EFFICIENCY'] = [75, 74, 100]   # gaps 20, 19, 30
+    result = engineer_target(df, gap_threshold=20)
+    assert result['RETROFIT_POTENTIAL'].tolist() == [1, 0, 0]   # gap 20 counts, C never does
+
+
+def test_extract_wall_type_missing_column_gives_clear_error():
+    with pytest.raises(ValueError, match='WALLS_DESCRIPTION'):
+        extract_wall_type(make_sample_df().drop(columns=['WALLS_DESCRIPTION']))
+
+
+def test_encode_age_band_unmapped_values_get_median():
+    df = make_sample_df()
+    df['CONSTRUCTION_AGE_BAND'] = ['England and Wales: 1930-1949', 'NO DATA!',
+                                   'England and Wales: 2003-2006']
+    result = encode_age_band(df)
+    assert result.loc[1, 'AGE_BAND_YEAR'] == (1940 + 2005) / 2
