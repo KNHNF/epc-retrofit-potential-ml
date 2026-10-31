@@ -42,7 +42,7 @@ Default sandbox environment (Python 3.13.18, scikit-learn 1.9.1, pandas 3.0.5):
 ```
 platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
 ... 39 PASSED lines (one per test, listed in tests/) ...
-============================== 39 passed in 2.78s ==============================
+39 passed in 2.78s
 ```
 
 Fresh virtualenv from `requirements.txt` as pinned (scikit-learn 1.6.1, pandas 3.1.0, numpy 2.5.4, xgboost 3.4.1), then `python-docx` added:
